@@ -83,13 +83,23 @@ defmodule SiteEmmer do
     if File.dir?(source_dir) do
       if verbose, do: IO.puts("🔍 Scanning for content files...")
 
-      source_dir
+      # First, look for files directly in the source directory
+      direct_files = find_files_in_directory(source_dir, verbose)
+
+      # Then, look for files in subdirectories
+      subdir_files = source_dir
       |> File.ls!()
-      |> Enum.filter(&File.dir?/1)
+      |> Enum.filter(fn item ->
+        item_path = Path.join(source_dir, item)
+        File.dir?(item_path)
+      end)
       |> Enum.flat_map(fn subdir ->
         subdir_path = Path.join(source_dir, subdir)
         find_files_in_directory(subdir_path, verbose)
       end)
+
+      # Combine both
+      direct_files ++ subdir_files
     else
       if verbose, do: IO.puts("⚠️  No source directory found")
       []
@@ -100,8 +110,8 @@ defmodule SiteEmmer do
     case File.ls(dir_path) do
       {:ok, files} ->
         html_files = Enum.filter(files, &String.ends_with?(&1, ".html"))
-        yaml_files = Enum.filter(files, &String.ends_with?(&1, ".yaml"))
-        markdown_files = Enum.filter(files, &String.ends_with?(&1, ".md"))
+        _yaml_files = Enum.filter(files, &String.ends_with?(&1, ".yaml"))
+        _markdown_files = Enum.filter(files, &String.ends_with?(&1, ".md"))
 
         Enum.flat_map(html_files, fn html_file ->
           html_path = Path.join(dir_path, html_file)
@@ -183,7 +193,9 @@ defmodule SiteEmmer do
   def extract_layout_and_content(html_content) do
     case Regex.run(~r/{%\s*layout\s+"([^"]+)"\s*%}(.*)/s, html_content) do
       [_, layout_name, content] ->
-        {layout_name, String.trim(content)}
+        # Strip .html extension to match template loading
+        clean_layout_name = Path.basename(layout_name, ".html")
+        {clean_layout_name, String.trim(content)}
       nil ->
         {nil, html_content}
     end
@@ -212,7 +224,9 @@ defmodule SiteEmmer do
 
   def process_includes(template, context, templates) do
     Regex.replace(~r/{%\s*include\s+"([^"]+)"\s*%}/, template, fn _, include_name ->
-      include_template = Map.get(templates, include_name, "")
+      # Strip .html extension to match template loading
+      clean_include_name = Path.basename(include_name, ".html")
+      include_template = Map.get(templates, clean_include_name, "")
       if include_template != "" do
         # Render the include template with the same context
         {:ok, parsed_include} = Solid.parse(include_template)
@@ -259,15 +273,19 @@ defmodule SiteEmmer do
     base_url = Map.get(site_data, "site", %{})["url"] || "https://example.com"
 
     urls = Enum.map(content_files, fn {html_file, _, _} ->
+      # Extract the directory name from the file path
+      # For paths like "/tmp/emmer_test/home/index.html", we want "home"
       parts = Path.split(html_file)
-      # Find the last two segments (e.g., ["home", "index.html"])
-      last_two = Enum.slice(parts, -2, 2)
-      page = hd(last_two)
-      url_path = "/" <> page
+      # Find the directory name (second to last part for index.html files)
+      dir_name = Enum.at(parts, -2)
+      url_path = "/" <> dir_name
       ~s(        <url>\n          <loc>#{base_url}#{url_path}</loc>\n          <lastmod>#{Date.utc_today()}</lastmod>\n        </url>)
     end) |> Enum.join("\n")
 
     sitemap_content = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n#{urls}\n</urlset>\n"
+
+    # Ensure output directory exists
+    File.mkdir_p!(output_dir)
 
     sitemap_path = Path.join(output_dir, "sitemap.xml")
     File.write!(sitemap_path, sitemap_content)

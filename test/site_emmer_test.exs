@@ -35,7 +35,7 @@ site:
 
   test "extract_layout_and_content extracts layout and content" do
     {layout, content} = SiteEmmer.extract_layout_and_content(@html_with_layout)
-    assert layout == "layout.html"
+    assert layout == "layout"
     assert String.contains?(content, "Hello World")
   end
 
@@ -280,10 +280,10 @@ site:
 
     # Templates map
     templates = %{
-      "main.html" => layout_template,
-      "header.html" => header_template,
-      "footer.html" => footer_template,
-      "sidebar.html" => sidebar_template
+      "main" => layout_template,
+      "header" => header_template,
+      "footer" => footer_template,
+      "sidebar" => sidebar_template
     }
 
     # Change to temp directory and build the page
@@ -454,10 +454,10 @@ site:
         nil,
         %{"site" => %{"name" => "Nested Site"}},
         %{
-          "nested.html" => nested_layout,
-          "nav.html" => nav_template,
-          "widget.html" => widget_template,
-          "footer.html" => footer_template
+          "nested" => nested_layout,
+          "nav" => nav_template,
+          "widget" => widget_template,
+          "footer" => footer_template
         },
         "dist",
         false

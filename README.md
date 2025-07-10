@@ -47,6 +47,10 @@ your-site/
    ```bash
    mix deps.get
    ```
+3. Install Node.js dependencies (for CSS generation):
+   ```bash
+   npm install
+   ```
 
 ## Usage
 
@@ -55,7 +59,7 @@ your-site/
 Build the site locally:
 
 ```bash
-# Using the CLI script
+# Using the CLI script (includes CSS generation)
 ./bin/build
 
 # Or using Elixir directly
@@ -63,6 +67,12 @@ elixir -e "SiteEmmer.build()"
 
 # With custom directories
 ./bin/build --source-dir content --output-dir dist --templates-dir templates
+
+# Build CSS only
+npm run build:css:prod
+
+# Build CSS in watch mode (development)
+npm run build:css
 ```
 
 ### GitHub Actions Build

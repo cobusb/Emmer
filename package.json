@@ -1,0 +1,15 @@
+{
+  "name": "emmer-static-site",
+  "version": "1.0.0",
+  "description": "Static site generator CSS build tools",
+  "scripts": {
+    "build:css": "tailwindcss --input ./assets/css/input.css --output ./assets/css/tailwind.css --watch",
+    "build:css:prod": "tailwindcss --input ./assets/css/input.css --output ./assets/css/tailwind.css --minify",
+    "dev": "npm run build:css"
+  },
+  "devDependencies": {
+    "@tailwindcss/forms": "^0.5.7",
+    "@tailwindcss/typography": "^0.5.10",
+    "tailwindcss": "^3.4.0"
+  }
+}

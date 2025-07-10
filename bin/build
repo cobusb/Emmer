@@ -1,40 +1,43 @@
-#!/usr/bin/env elixir
+#!/bin/bash
 
-# CLI script for the static site generator
-# Usage: ./bin/build [options]
-# Options:
-#   -s, --source-dir DIR     Source directory (default: content)
-#   -o, --output-dir DIR     Output directory (default: dist)
-#   -t, --templates-dir DIR  Templates directory (default: templates)
-#   -a, --assets-dir DIR     Assets directory (default: assets)
-#   -v, --verbose            Enable verbose output
-#   --watch                  Watch for file changes and rebuild
+# Emmer Static Site Generator Build Script
 
-# Add the current directory to the code path
-Code.append_path(File.cwd!())
+set -e
 
-# Parse command line arguments
-{opts, _args, _} = OptionParser.parse(System.argv(),
-  strict: [
-    source_dir: :string,
-    output_dir: :string,
-    templates_dir: :string,
-    assets_dir: :string,
-    verbose: :boolean,
-    watch: :boolean
-  ],
-  aliases: [
-    s: :source_dir,
-    o: :output_dir,
-    t: :templates_dir,
-    a: :assets_dir,
-    v: :verbose
-  ]
-)
+# Default values
+SOURCE_DIR=${1:-"content"}
+OUTPUT_DIR=${2:-"dist"}
+TEMPLATES_DIR=${3:-"templates"}
+ASSETS_DIR=${4:-"assets"}
+VERBOSE=${5:-"false"}
 
-# Check if watch mode is requested
-if opts[:watch] do
-  SiteEmmer.watch(opts)
+echo "🏗️  Building Emmer static site..."
+
+# Check if Node.js and npm are available for CSS building
+if command -v npm &> /dev/null; then
+    echo "📦 Installing/updating Node.js dependencies..."
+    npm install --silent
+
+    echo "🎨 Building CSS..."
+    npm run build:css:prod
 else
-  SiteEmmer.build(opts)
-end
+    echo "⚠️  Node.js not found. Skipping CSS build."
+    echo "   Install Node.js to enable automatic CSS generation."
+fi
+
+# Build the site
+echo "📄 Building site from $SOURCE_DIR to $OUTPUT_DIR..."
+
+elixir -e "
+SiteEmmer.build([
+  source_dir: \"$SOURCE_DIR\",
+  output_dir: \"$OUTPUT_DIR\",
+  templates_dir: \"$TEMPLATES_DIR\",
+  assets_dir: \"$ASSETS_DIR\",
+  verbose: $VERBOSE
+])
+"
+
+echo "✅ Site built successfully!"
+echo "📁 Output directory: $OUTPUT_DIR"
+echo "🌐 Open $OUTPUT_DIR/index.html in your browser to view the site"

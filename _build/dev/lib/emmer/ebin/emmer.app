@@ -1,5 +1,6 @@
 {application,emmer,
-             [{modules,['Elixir.Mix.Tasks.Emmer.New','Elixir.SiteEmmer']},
+             [{modules,['Elixir.CssBuilder','Elixir.Mix.Tasks.Emmer.New',
+                        'Elixir.SiteEmmer']},
               {optional_applications,[]},
               {applications,[kernel,stdlib,elixir,logger,solid,yaml_elixir,
                              file_system]},
