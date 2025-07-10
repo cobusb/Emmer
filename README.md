@@ -1,5 +1,8 @@
 # Emmer - Static Site Generator
 
+[![Tests](https://github.com/cobusb/Emmer/workflows/Tests/badge.svg)](https://github.com/cobusb/Emmer/actions)
+[![Coverage](https://coveralls.io/repos/github/cobusb/Emmer/badge.svg?branch=main)](https://coveralls.io/github/cobusb/Emmer?branch=main)
+
 A static site generator built in Elixir that crawls folders for HTML and YAML files, matches them up, and generates content using Solid templating.
 
 ## Features

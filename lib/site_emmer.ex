@@ -148,9 +148,9 @@ defmodule SiteEmmer do
     # Extract layout and content
     {layout_name, content} = extract_layout_and_content(html_content)
 
-    # Merge all data
+    # Merge all data - extract page data from YAML
     context = Map.merge(site_data, %{
-      "page" => page_data,
+      "page" => Map.get(page_data, "page", %{}),
       "content" => content,
       "markdown" => markdown_content,
       "current_year" => Date.utc_today().year
@@ -203,16 +203,23 @@ defmodule SiteEmmer do
 
   def render_template(template, context, templates) do
     # Process includes first
-    template_with_includes = process_includes(template, templates)
+    template_with_includes = process_includes(template, context, templates)
 
     # Parse and render with Solid
     {:ok, parsed_template} = Solid.parse(template_with_includes)
     Solid.render!(parsed_template, context)
   end
 
-  def process_includes(template, templates) do
+  def process_includes(template, context, templates) do
     Regex.replace(~r/{%\s*include\s+"([^"]+)"\s*%}/, template, fn _, include_name ->
-      Map.get(templates, include_name, "")
+      include_template = Map.get(templates, include_name, "")
+      if include_template != "" do
+        # Render the include template with the same context
+        {:ok, parsed_include} = Solid.parse(include_template)
+        Solid.render!(parsed_include, context)
+      else
+        ""
+      end
     end)
   end
 
@@ -223,6 +230,9 @@ defmodule SiteEmmer do
   end
 
   def copy_static_assets(source_dir, output_dir, assets_dir, verbose \\ false) do
+    # Ensure output directory exists
+    File.mkdir_p!(output_dir)
+
     static_dirs = ["images", "css", "js", "assets", "fonts", "downloads"]
 
     Enum.each(static_dirs, fn dir ->
@@ -317,5 +327,195 @@ defmodule SiteEmmer do
       {:file_event, _pid, :stop} ->
         IO.puts("👋 Stopping file watcher")
     end
+  end
+end
+
+defmodule Mix.Tasks.Emmer.New do
+  use Mix.Task
+  @shortdoc "Creates a new Emmer static site project with DaisyUI and deploy workflow."
+
+  @moduledoc """
+  mix emmer.new <project_name>
+
+  Creates a new Emmer static site project with DaisyUI, dark/light mode, and a deploy workflow (rsync/scp example).
+  """
+
+  @impl true
+  def run([project_name]) do
+    base = Path.expand(project_name)
+    File.mkdir_p!(base)
+    File.cd!(base, fn ->
+      create_structure()
+      create_templates()
+      create_content()
+      create_assets()
+      create_github_workflow()
+      create_readme(project_name)
+    end)
+    Mix.shell().info("\nProject '#{project_name}' created!\n\nTo get started:\n  cd #{project_name}\n  mix deps.get\n  ./bin/build\n")
+  end
+
+  defp create_structure do
+    File.mkdir_p!("content/home")
+    File.mkdir_p!("content/about")
+    File.mkdir_p!("content/blog")
+    File.mkdir_p!("content/contact")
+    File.mkdir_p!("templates")
+    File.mkdir_p!("assets/js")
+    File.mkdir_p!("assets/css")
+    File.mkdir_p!(".github/workflows")
+  end
+
+  defp create_templates do
+    File.write!("templates/layout.html", layout_template())
+    File.write!("templates/header.html", header_template())
+    File.write!("templates/footer.html", footer_template())
+  end
+
+  defp create_content do
+    File.write!("content/home/index.html", "{% layout \"layout.html\" %}\n<h1 class=\"text-4xl font-bold mb-4\">Welcome to {{ site.name }}</h1>\n<p>This is your new Emmer site. Edit content/home/index.html to get started.</p>\n")
+    File.write!("content/home/index.yaml", "page:\n  title: Home\n")
+    File.write!("content/about/index.html", "{% layout \"layout.html\" %}\n<h1 class=\"text-3xl font-bold mb-4\">About Us</h1>\n<p>We are an awesome team using Emmer and DaisyUI!</p>\n")
+    File.write!("content/about/index.yaml", "page:\n  title: About Us\n")
+    File.write!("content/blog/index.html", "{% layout \"layout.html\" %}\n<h1 class=\"text-3xl font-bold mb-4\">Blog</h1>\n<p>Stay tuned for updates.</p>\n")
+    File.write!("content/blog/index.yaml", "page:\n  title: Blog\n")
+    File.write!("content/contact/index.html", "{% layout \"layout.html\" %}\n<h1 class=\"text-3xl font-bold mb-4\">Contact Us</h1>\n<p>Email: <a href=\"mailto:info@example.com\" class=\"link\">info@example.com</a></p>\n")
+    File.write!("content/contact/index.yaml", "page:\n  title: Contact Us\n")
+    File.write!("content/site.yaml", "site:\n  name: \"My Emmer Site\"\n  description: \"A static site generated with Emmer and DaisyUI\"\n")
+  end
+
+  defp create_assets do
+    File.write!("assets/js/theme-toggle.js", js_toggle())
+    File.write!("assets/css/tailwind.css", tailwind_cdn())
+  end
+
+  defp create_github_workflow do
+    File.write!(".github/workflows/deploy.yml", deploy_workflow())
+  end
+
+  defp create_readme(project_name) do
+    File.write!("README.md", "# #{project_name}\n\nGenerated with Emmer.\n\nSee .github/workflows/deploy.yml for deployment setup.\n")
+  end
+
+  defp layout_template do
+    """
+<!DOCTYPE html>
+<html lang=\"en\" data-theme=\"light\">
+<head>
+  <meta charset=\"UTF-8\">
+  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
+  <title>{{ page.title }} - {{ site.name }}</title>
+  <link href=\"/assets/css/tailwind.css\" rel=\"stylesheet\">
+  <script src=\"/assets/js/theme-toggle.js\" defer></script>
+</head>
+<body class=\"bg-base-100 text-base-content\">
+  {% include \"header.html\" %}
+  <main class=\"container mx-auto px-4 py-8\">
+    {{ content }}
+  </main>
+  {% include \"footer.html\" %}
+</body>
+</html>
+"""
+  end
+
+  defp header_template do
+    """
+<header class=\"navbar bg-base-200\">
+  <div class=\"flex-1\">
+    <a class=\"btn btn-ghost text-xl\" href=\"/\">{{ site.name }}</a>
+  </div>
+  <div class=\"flex-none\">
+    <button id=\"theme-toggle\" class=\"btn btn-square btn-ghost\" aria-label=\"Toggle dark mode\">
+      <svg id=\"theme-icon\" xmlns=\"http://www.w3.org/2000/svg\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\" class=\"w-6 h-6\"></svg>
+    </button>
+  </div>
+</header>
+<nav class=\"menu menu-horizontal bg-base-100 rounded-box p-2 mb-4\">
+  <a class=\"menu-item btn btn-ghost\" href=\"/\">Home</a>
+  <a class=\"menu-item btn btn-ghost\" href=\"/about/\">About</a>
+  <a class=\"menu-item btn btn-ghost\" href=\"/blog/\">Blog</a>
+  <a class=\"menu-item btn btn-ghost\" href=\"/contact/\">Contact</a>
+</nav>
+"""
+  end
+
+  defp footer_template do
+    """
+<footer class=\"footer p-4 bg-base-200 text-base-content footer-center\">
+  <div>
+    <p>© {{ current_year }} {{ site.name }}. Powered by <a href=\"https://github.com/cobusb/Emmer\" class=\"link\">Emmer</a>.</p>
+  </div>
+</footer>
+"""
+  end
+
+  defp js_toggle do
+    """
+// DaisyUI dark/light mode toggle
+const themeToggle = document.getElementById('theme-toggle');
+const themeIcon = document.getElementById('theme-icon');
+const html = document.documentElement;
+
+function setTheme(theme) {
+  html.setAttribute('data-theme', theme);
+  localStorage.setItem('theme', theme);
+  themeIcon.innerHTML = theme === 'dark'
+    ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m8.66-13.66l-.71.71M4.05 19.95l-.71.71M21 12h-1M4 12H3m16.95 4.95l-.71-.71M6.34 6.34l-.71-.71M12 5a7 7 0 100 14 7 7 0 000-14z" />'
+    : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m8.66-13.66l-.71.71M4.05 19.95l-.71.71M21 12h-1M4 12H3m16.95 4.95l-.71-.71M6.34 6.34l-.71-.71M12 5a7 7 0 100 14 7 7 0 000-14z" />';
+}
+
+if (themeToggle) {
+  themeToggle.addEventListener('click', () => {
+    const current = html.getAttribute('data-theme');
+    setTheme(current === 'dark' ? 'light' : 'dark');
+  });
+  // On load
+  setTheme(localStorage.getItem('theme') || 'light');
+}
+"""
+  end
+
+  defp tailwind_cdn do
+    """
+@import url('https://cdn.jsdelivr.net/npm/daisyui@4.10.2/dist/full.css');
+"""
+  end
+
+  defp deploy_workflow do
+    """
+name: Deploy Static Site
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: '1.18.4'
+          otp-version: '26.0'
+      - name: Install dependencies
+        run: |
+          mix local.hex --force
+          mix local.rebar --force
+          mix deps.get
+      - name: Build site
+        run: |
+          elixir -e "SiteEmmer.build()"
+      - name: Deploy to server (rsync)
+        env:
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          rsync -avz --delete dist/ $DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH
+"""
   end
 end

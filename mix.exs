@@ -6,7 +6,8 @@ defmodule Emmer.MixProject do
       app: :emmer,
       version: "1.0.0",
       elixir: "~> 1.18.4",
-      deps: deps()
+      deps: deps(),
+      test_coverage: [tool: ExCoveralls]
     ]
   end
 
@@ -20,7 +21,8 @@ defmodule Emmer.MixProject do
     [
       {:solid, "~> 1.0"},
       {:yaml_elixir, "~> 2.9"},
-      {:file_system, "~> 0.2"}
+      {:file_system, "~> 1.1.0"},
+      {:excoveralls, "~> 0.18.5", only: :test}
     ]
   end
 end

@@ -40,10 +40,10 @@ site:
   end
 
   test "process_includes replaces includes with template content" do
-    templates = %{"header" => @header_template}
-    result = SiteEmmer.process_includes(@html_with_include, templates)
-    assert String.contains?(result, "<header>Header</header>")
-    assert String.contains?(result, "Main Content")
+    templates = %{"header" => "<header>Header</header>"}
+    result = SiteEmmer.process_includes(@html_with_include, %{}, templates)
+    assert result =~ "<header>Header</header>"
+    assert result =~ "Main Content"
   end
 
   test "render_with_layout renders content inside layout" do
@@ -106,6 +106,428 @@ site:
     assert content =~ "<?xml version=\"1.0\""
     assert content =~ "https://example.com/home"
     assert content =~ "https://example.com/about"
+
+    File.rm_rf!(tmp)
+  end
+
+  test "copy_static_assets copies static asset directories" do
+    src = Path.join(System.tmp_dir!(), "emmer_assets_src")
+    out = Path.join(System.tmp_dir!(), "emmer_assets_out")
+    File.rm_rf!(src)
+    File.rm_rf!(out)
+    File.mkdir_p!(Path.join(src, "images"))
+    File.mkdir_p!(Path.join(src, "css"))
+    File.mkdir_p!(Path.join(src, "js"))
+    File.mkdir_p!(Path.join(src, "fonts"))
+    File.mkdir_p!(Path.join(src, "downloads"))
+    File.write!(Path.join(src, "images/logo.png"), "fakeimg")
+    File.write!(Path.join(src, "css/style.css"), "body{}")
+    File.write!(Path.join(src, "js/app.js"), "console.log('hi')")
+    File.write!(Path.join(src, "fonts/font.ttf"), "fontdata")
+    File.write!(Path.join(src, "downloads/file.txt"), "download")
+    SiteEmmer.copy_static_assets(src, out, "assets", false)
+    assert File.exists?(Path.join(out, "images/logo.png"))
+    assert File.exists?(Path.join(out, "css/style.css"))
+    assert File.exists?(Path.join(out, "js/app.js"))
+    assert File.exists?(Path.join(out, "fonts/font.ttf"))
+    assert File.exists?(Path.join(out, "downloads/file.txt"))
+    File.rm_rf!(src)
+    File.rm_rf!(out)
+  end
+
+  test "copy_static_assets copies custom assets_dir if it exists" do
+    src = Path.join(System.tmp_dir!(), "emmer_assets_src2")
+    out = Path.join(System.tmp_dir!(), "emmer_assets_out2")
+    File.rm_rf!(src)
+    File.rm_rf!(out)
+    File.mkdir_p!(Path.join(src, "assets"))
+    File.write!(Path.join(src, "assets/custom.txt"), "custom")
+    SiteEmmer.copy_static_assets(src, out, "assets", false)
+    assert File.exists?(Path.join(out, "assets/custom.txt"))
+    File.rm_rf!(src)
+    File.rm_rf!(out)
+  end
+
+  test "build_page creates a complex page with layouts, includes, and Liquid templating" do
+    tmp = Path.join(System.tmp_dir!(), "emmer_build_test")
+    File.rm_rf!(tmp)
+    File.mkdir_p!(Path.join(tmp, "content/blog"))
+    File.mkdir_p!(Path.join(tmp, "templates"))
+    File.mkdir_p!(Path.join(tmp, "dist"))
+
+    # Create complex HTML content with Liquid templating
+    html_content = """
+    {% layout "main.html" %}
+
+    <h1>{{ page.title }}</h1>
+    <p>{{ page.description }}</p>
+
+    {% if page.featured %}
+    <div class="featured">
+      <h2>Featured: {{ page.featured.title }}</h2>
+      <p>{{ page.featured.description }}</p>
+    </div>
+    {% endif %}
+
+    {% for tag in page.tags %}
+    <span class="tag">{{ tag }}</span>
+    {% endfor %}
+
+    {% include "sidebar.html" %}
+
+    <div class="content">
+      {{ markdown }}
+    </div>
+
+    <footer>
+      <p>© {{ current_year }} {{ site.name }}</p>
+    </footer>
+    """
+
+    # Create YAML data
+    yaml_content = """
+    page:
+      title: "My Blog Post"
+      description: "This is a test blog post"
+      featured:
+        title: "Featured Article"
+        description: "This is featured content"
+      tags:
+        - "elixir"
+        - "static-site"
+        - "emmer"
+    """
+
+    # Create Markdown content
+    markdown_content = """
+    # Blog Post Content
+
+    This is the **markdown content** that should be rendered.
+
+    ## Features
+    - Liquid templating
+    - Layouts and includes
+    - YAML data integration
+    - Markdown support
+    """
+
+    # Create main layout template
+    layout_template = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>{{ page.title }} - {{ site.name }}</title>
+    </head>
+    <body>
+      {% include "header.html" %}
+      <main>
+        {{ content }}
+      </main>
+      {% include "footer.html" %}
+    </body>
+    </html>
+    """
+
+    # Create header include
+    header_template = """
+    <header>
+      <nav>
+        <a href="/">Home</a>
+        <a href="/blog/">Blog</a>
+        <a href="/about/">About</a>
+      </nav>
+    </header>
+    """
+
+    # Create footer include
+    footer_template = """
+    <footer>
+      <p>Built with Emmer</p>
+    </footer>
+    """
+
+    # Create sidebar include
+    sidebar_template = """
+    <aside>
+      <h3>Recent Posts</h3>
+      <ul>
+        {% for post in site.recent_posts %}
+        <li><a href="{{ post.url }}">{{ post.title }}</a></li>
+        {% endfor %}
+      </ul>
+    </aside>
+    """
+
+    # Write test files
+    File.write!(Path.join(tmp, "content/blog/index.html"), html_content)
+    File.write!(Path.join(tmp, "content/blog/index.yaml"), yaml_content)
+    File.write!(Path.join(tmp, "content/blog/index.md"), markdown_content)
+    File.write!(Path.join(tmp, "templates/main.html"), layout_template)
+    File.write!(Path.join(tmp, "templates/header.html"), header_template)
+    File.write!(Path.join(tmp, "templates/footer.html"), footer_template)
+    File.write!(Path.join(tmp, "templates/sidebar.html"), sidebar_template)
+
+    # Site data
+    site_data = %{
+      "site" => %{
+        "name" => "Test Site",
+        "recent_posts" => [
+          %{"title" => "Post 1", "url" => "/post1/"},
+          %{"title" => "Post 2", "url" => "/post2/"}
+        ]
+      }
+    }
+
+    # Templates map
+    templates = %{
+      "main.html" => layout_template,
+      "header.html" => header_template,
+      "footer.html" => footer_template,
+      "sidebar.html" => sidebar_template
+    }
+
+    # Change to temp directory and build the page
+    File.cd!(tmp, fn ->
+      SiteEmmer.build_page(
+        "content/blog/index.html",
+        "content/blog/index.yaml",
+        "content/blog/index.md",
+        site_data,
+        templates,
+        "dist",
+        false
+      )
+    end)
+
+    # Read the generated output
+    output_path = Path.join(tmp, "dist/blog/index.html")
+    assert File.exists?(output_path)
+    output_content = File.read!(output_path)
+
+    # Verify the output contains expected content
+    # Note: YAML data should be loaded, Markdown is passed as raw text
+    assert output_content =~ "My Blog Post"
+    assert output_content =~ "This is a test blog post"
+    assert output_content =~ "Featured Article"
+    assert output_content =~ "This is featured content"
+    assert output_content =~ "elixir"
+    assert output_content =~ "static-site"
+    assert output_content =~ "emmer"
+    # Markdown content is passed as raw text
+    assert output_content =~ "# Blog Post Content"
+    assert output_content =~ "**markdown content**"
+    assert output_content =~ "Liquid templating"
+    assert output_content =~ "Layouts and includes"
+    assert output_content =~ "YAML data integration"
+    assert output_content =~ "Markdown support"
+    assert output_content =~ "Test Site"
+    assert output_content =~ "Recent Posts"
+    assert output_content =~ "Post 1"
+    assert output_content =~ "Post 2"
+    assert output_content =~ "Built with Emmer"
+    assert output_content =~ "Home"
+    assert output_content =~ "Blog"
+    assert output_content =~ "About"
+    assert output_content =~ "© #{Date.utc_today().year}"
+
+    File.rm_rf!(tmp)
+  end
+
+  test "build_page handles missing YAML and Markdown files gracefully" do
+    tmp = Path.join(System.tmp_dir!(), "emmer_build_test2")
+    File.rm_rf!(tmp)
+    File.mkdir_p!(Path.join(tmp, "content/simple"))
+    File.mkdir_p!(Path.join(tmp, "templates"))
+    File.mkdir_p!(Path.join(tmp, "dist"))
+
+    # Create simple HTML content without YAML or Markdown
+    html_content = """
+    <h1>{{ site.name }}</h1>
+    <p>Simple page without YAML or Markdown</p>
+    <p>Current year: {{ current_year }}</p>
+    """
+
+    File.write!(Path.join(tmp, "content/simple/index.html"), html_content)
+
+    # Change to temp directory and build the page
+    File.cd!(tmp, fn ->
+      SiteEmmer.build_page(
+        "content/simple/index.html",
+        nil,
+        nil,
+        %{"site" => %{"name" => "Simple Site"}},
+        %{},
+        "dist",
+        false
+      )
+    end)
+
+    # Read the generated output
+    output_path = Path.join(tmp, "dist/simple/index.html")
+    assert File.exists?(output_path)
+    output_content = File.read!(output_path)
+
+    # Verify the output contains expected content
+    assert output_content =~ "Simple Site"
+    assert output_content =~ "Simple page without YAML or Markdown"
+    assert output_content =~ "Current year: #{Date.utc_today().year}"
+
+    File.rm_rf!(tmp)
+  end
+
+  test "build_page handles layout with includes and nested templating" do
+    tmp = Path.join(System.tmp_dir!(), "emmer_build_test3")
+    File.rm_rf!(tmp)
+    File.mkdir_p!(Path.join(tmp, "content/nested"))
+    File.mkdir_p!(Path.join(tmp, "templates"))
+    File.mkdir_p!(Path.join(tmp, "dist"))
+
+    # Create HTML with layout
+    html_content = """
+    {% layout "nested.html" %}
+
+    <h1>{{ page.title }}</h1>
+    <p>{{ page.content }}</p>
+    {% include "widget.html" %}
+    """
+
+    # Create YAML data
+    yaml_content = """
+    page:
+      title: "Nested Layout Test"
+      content: "This tests nested layouts and includes"
+    """
+
+    # Create nested layout
+    nested_layout = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>{{ page.title }}</title>
+    </head>
+    <body>
+      {% include "nav.html" %}
+      <div class="container">
+        {{ content }}
+      </div>
+      {% include "footer.html" %}
+    </body>
+    </html>
+    """
+
+    # Create navigation include
+    nav_template = """
+    <nav>
+      <a href="/">Home</a>
+      <a href="/about/">About</a>
+    </nav>
+    """
+
+    # Create widget include
+    widget_template = """
+    <div class="widget">
+      <h3>Widget Title</h3>
+      <p>Widget content for {{ page.title }}</p>
+    </div>
+    """
+
+    # Create footer include
+    footer_template = """
+    <footer>
+      <p>Footer for {{ site.name }}</p>
+    </footer>
+    """
+
+    # Write test files
+    File.write!(Path.join(tmp, "content/nested/index.html"), html_content)
+    File.write!(Path.join(tmp, "content/nested/index.yaml"), yaml_content)
+    File.write!(Path.join(tmp, "templates/nested.html"), nested_layout)
+    File.write!(Path.join(tmp, "templates/nav.html"), nav_template)
+    File.write!(Path.join(tmp, "templates/widget.html"), widget_template)
+    File.write!(Path.join(tmp, "templates/footer.html"), footer_template)
+
+    # Change to temp directory and build the page
+    File.cd!(tmp, fn ->
+      SiteEmmer.build_page(
+        "content/nested/index.html",
+        "content/nested/index.yaml",
+        nil,
+        %{"site" => %{"name" => "Nested Site"}},
+        %{
+          "nested.html" => nested_layout,
+          "nav.html" => nav_template,
+          "widget.html" => widget_template,
+          "footer.html" => footer_template
+        },
+        "dist",
+        false
+      )
+    end)
+
+    # Read the generated output
+    output_path = Path.join(tmp, "dist/nested/index.html")
+    assert File.exists?(output_path)
+    output_content = File.read!(output_path)
+
+    # Verify the output contains expected content
+    assert output_content =~ "Nested Layout Test"
+    assert output_content =~ "This tests nested layouts and includes"
+    assert output_content =~ "Widget Title"
+    assert output_content =~ "Widget content for Nested Layout Test"
+    assert output_content =~ "Home"
+    assert output_content =~ "About"
+    assert output_content =~ "Footer for Nested Site"
+    assert output_content =~ "<!DOCTYPE html>"
+    assert output_content =~ "<html>"
+    assert output_content =~ "<body>"
+    assert output_content =~ "<nav>"
+    assert output_content =~ "<footer>"
+
+    File.rm_rf!(tmp)
+  end
+
+  test "build_page loads YAML data correctly" do
+    tmp = Path.join(System.tmp_dir!(), "emmer_yaml_test")
+    File.rm_rf!(tmp)
+    File.mkdir_p!(Path.join(tmp, "content/test"))
+    File.mkdir_p!(Path.join(tmp, "dist"))
+
+    # Create simple HTML with YAML data
+    html_content = """
+    <h1>{{ page.title }}</h1>
+    <p>{{ page.description }}</p>
+    """
+
+    yaml_content = """
+    page:
+      title: "Test Title"
+      description: "Test Description"
+    """
+
+    File.write!(Path.join(tmp, "content/test/index.html"), html_content)
+    File.write!(Path.join(tmp, "content/test/index.yaml"), yaml_content)
+
+    # Change to temp directory and build the page
+    File.cd!(tmp, fn ->
+      SiteEmmer.build_page(
+        "content/test/index.html",
+        "content/test/index.yaml",
+        nil,
+        %{},
+        %{},
+        "dist",
+        false
+      )
+    end)
+
+    # Read the generated output
+    output_path = Path.join(tmp, "dist/test/index.html")
+    assert File.exists?(output_path)
+    output_content = File.read!(output_path)
+
+    # Verify YAML data is loaded
+    assert output_content =~ "Test Title"
+    assert output_content =~ "Test Description"
 
     File.rm_rf!(tmp)
   end

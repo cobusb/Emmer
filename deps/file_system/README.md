@@ -1,25 +1,37 @@
-FileSystem
-=========
+# FileSystem
 
-A file change watcher wrapper based on [fs](https://github.com/synrc/fs)
+[![Module Version](https://img.shields.io/hexpm/v/file_system.svg)](https://hex.pm/packages/file_system)
+[![Hex Docs](https://img.shields.io/badge/hex-docs-lightgreen.svg)](https://hexdocs.pm/file_system/)
+[![Total Download](https://img.shields.io/hexpm/dt/file_system.svg)](https://hex.pm/packages/file_system)
+[![License](https://img.shields.io/hexpm/l/file_system.svg)](https://github.com/falood/file_system/blob/master/LICENSE)
+[![Last Updated](https://img.shields.io/github/last-commit/falood/file_system.svg)](https://github.com/falood/file_system/commits/master)
+[![CI Linux](https://github.com/falood/file_system/actions/workflows/ci-linux.yml/badge.svg)](https://github.com/falood/file_system/actions)
+[![CI MacOS](https://github.com/falood/file_system/actions/workflows/ci-macos.yml/badge.svg)](https://github.com/falood/file_system/actions)
+[![CI Windows](https://github.com/falood/file_system/actions/workflows/ci-windows.yml/badge.svg)](https://github.com/falood/file_system/actions)
+
+An Elixir file change watcher wrapper based on
+[FS](https://github.com/synrc/fs), the native file system listener.
 
 ## System Support
 
-- Mac fsevent
-- Linux, FreeBSD and OpenBSD inotify
-- Windows inotify-win
+- MacOS - [fsevent](https://github.com/thibaudgg/rb-fsevent)
+- GNU/Linux, FreeBSD, DragonFly and OpenBSD - [inotify](https://github.com/rvoicilas/inotify-tools/wiki)
+- Windows - [inotify-win](https://github.com/thekid/inotify-win)
 
-NOTE:
+On MacOS 10.14, to compile `mac_listener`, run:
 
-        On Linux, FreeBSD and OpenBSD you need to install inotify-tools.
-        On Macos 10.14, you need run `open /Library/Developer/CommandLineTools/Packages/macOS_SDK_headers_for_macOS_10.14.pkg` to compile `mac_listener`.
+```console
+open /Library/Developer/CommandLineTools/Packages/macOS_SDK_headers_for_macOS_10.14.pkg
+```
+
+On newer versions this file doesn't exist. But it still should work just fine as long as you have xcode installed.
 
 ## Usage
 
-Put `file_system` in the `deps` and `application` part of your mix.exs
+Add `file_system` to the `deps` of your mix.exs
 
 ``` elixir
-defmodule Excellent.Mixfile do
+defmodule MyApp.Mixfile do
   use Mix.Project
 
   def project do
@@ -28,13 +40,12 @@ defmodule Excellent.Mixfile do
 
   defp deps do
     [
-      { :file_system, "~> 0.2", only: :test },
+      {:file_system, "~> 1.0", only: :test},
     ]
   end
   ...
 end
 ```
-
 
 ### Subscription API
 
@@ -52,17 +63,18 @@ or
 FileSystem.subscribe(:my_monitor_name)
 ```
 
-The pid you subscribed from will now receive messages like
+The `pid` you subscribed from will now receive messages like:
 
 ```
 {:file_event, worker_pid, {file_path, events}}
 ```
 and
+
 ```
 {:file_event, worker_pid, :stop}
 ```
 
-### Example with GenServer
+### Example Using GenServer
 
 ```elixir
 defmodule Watcher do
@@ -78,26 +90,27 @@ defmodule Watcher do
     {:ok, %{watcher_pid: watcher_pid}}
   end
 
-  def handle_info({:file_event, watcher_pid, {path, events}}, %{watcher_pid: watcher_pid}=state) do
-    # YOUR OWN LOGIC FOR PATH AND EVENTS
+  def handle_info({:file_event, watcher_pid, {path, events}}, %{watcher_pid: watcher_pid} = state) do
+    # Your own logic for path and events
     {:noreply, state}
   end
 
-  def handle_info({:file_event, watcher_pid, :stop}, %{watcher_pid: watcher_pid}=state) do
-    # YOUR OWN LOGIC WHEN MONITOR STOP
+  def handle_info({:file_event, watcher_pid, :stop}, %{watcher_pid: watcher_pid} = state) do
+    # Your own logic when monitor stop
     {:noreply, state}
   end
 end
 ```
 
+## Backend Options
 
-## Tweaking behaviour via extra arguments
+For each platform, you can pass extra options to the underlying listener
+process.
 
-For each platform, you can pass extra arguments to the underlying listener process.
+Each backend supports different extra options, check backend module
+documentation for more details.
 
-Each backend support different extra arguments, check backend module documentation for more information.
-
-Here is an example to get instant notifications on file changes for Mac OS X:
+Here is an example to get instant notifications on file changes for MacOS:
 
 ```elixir
 FileSystem.start_link(dirs: ["/path/to/some/files"], latency: 0, watch_root: true)
