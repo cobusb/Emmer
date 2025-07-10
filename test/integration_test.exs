@@ -1,5 +1,5 @@
 defmodule IntegrationTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   test "complete build process with CSS generation" do
     # Create test project structure
@@ -164,8 +164,8 @@ defmodule IntegrationTest do
   end
 
   test "build process handles missing Node.js gracefully" do
-    # Create minimal test structure
-    tmp = Path.join(System.tmp_dir!(), "emmer_no_node_test")
+    # Create minimal test structure with unique name
+    tmp = Path.join(System.tmp_dir!(), "emmer_no_node_test_#{:rand.uniform(10000)}")
     File.rm_rf!(tmp)
     File.mkdir_p!(tmp)
 
@@ -173,7 +173,7 @@ defmodule IntegrationTest do
     File.mkdir_p!(Path.join(tmp, "templates"))
     File.mkdir_p!(Path.join(tmp, "dist"))
 
-        # Create minimal content in a subdirectory
+    # Create minimal content in a subdirectory
     File.mkdir_p!(Path.join(tmp, "content/home"))
     File.write!(Path.join(tmp, "content/home/index.html"), """
     {% layout "layout.html" %}
@@ -188,9 +188,10 @@ defmodule IntegrationTest do
 
     # Change to test directory
     original_dir = File.cwd!()
-    File.cd!(tmp)
 
     try do
+      File.cd!(tmp)
+
       # This should not fail even without Node.js
       SiteEmmer.build([
         source_dir: "content",
@@ -199,14 +200,17 @@ defmodule IntegrationTest do
         verbose: false
       ])
 
-            # Verify basic site generation still works
+      # Verify basic site generation still works
       assert File.exists?(Path.join("dist", "home/index.html"))
 
       index_html = File.read!(Path.join("dist", "home/index.html"))
       assert index_html =~ "<h1>Hello World</h1>"
 
     after
+      # Change back to original directory
       File.cd!(original_dir)
+
+      # Clean up test directory
       File.rm_rf!(tmp)
     end
   end
@@ -312,9 +316,10 @@ defmodule IntegrationTest do
 
     # Change to test directory
     original_dir = File.cwd!()
-    File.cd!(tmp)
 
     try do
+      File.cd!(tmp)
+
       # Run build
       SiteEmmer.build([
         source_dir: "content",
@@ -333,7 +338,10 @@ defmodule IntegrationTest do
       assert index_html =~ "custom-card"
 
     after
+      # Change back to original directory
       File.cd!(original_dir)
+
+      # Clean up test directory
       File.rm_rf!(tmp)
     end
   end

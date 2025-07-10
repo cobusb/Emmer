@@ -1,9 +1,9 @@
 defmodule DebugTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   test "debug build process" do
-    # Create test structure
-    tmp = Path.join(System.tmp_dir!(), "debug_test")
+    # Create test structure with unique name
+    tmp = Path.join(System.tmp_dir!(), "debug_test_#{:rand.uniform(10000)}")
     File.rm_rf!(tmp)
     File.mkdir_p!(tmp)
 
@@ -11,7 +11,7 @@ defmodule DebugTest do
     File.mkdir_p!(Path.join(tmp, "templates"))
     File.mkdir_p!(Path.join(tmp, "dist"))
 
-        # Create minimal content in a subdirectory
+    # Create minimal content in a subdirectory
     File.mkdir_p!(Path.join(tmp, "content/home"))
     File.write!(Path.join(tmp, "content/home/index.html"), """
     {% layout "layout.html" %}
@@ -26,9 +26,10 @@ defmodule DebugTest do
 
     # Change to test directory
     original_dir = File.cwd!()
-    File.cd!(tmp)
 
     try do
+      File.cd!(tmp)
+
       # Check what files exist before build
       IO.puts("Files before build:")
       IO.puts("content: #{File.ls!("content")}")
@@ -53,14 +54,17 @@ defmodule DebugTest do
         IO.puts("dist directory does not exist")
       end
 
-            # Verify basic site generation still works
+      # Verify basic site generation still works
       assert File.exists?(Path.join("dist", "home/index.html"))
 
       index_html = File.read!(Path.join("dist", "home/index.html"))
       assert index_html =~ "<h1>Hello World</h1>"
 
-    after
+        after
+      # Change back to original directory
       File.cd!(original_dir)
+
+      # Clean up test directory
       File.rm_rf!(tmp)
     end
   end

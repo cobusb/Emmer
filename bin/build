@@ -28,15 +28,14 @@ fi
 # Build the site
 echo "📄 Building site from $SOURCE_DIR to $OUTPUT_DIR..."
 
-elixir -e "
-SiteEmmer.build([
-  source_dir: \"$SOURCE_DIR\",
-  output_dir: \"$OUTPUT_DIR\",
-  templates_dir: \"$TEMPLATES_DIR\",
-  assets_dir: \"$ASSETS_DIR\",
-  verbose: $VERBOSE
-])
-"
+mix run -e '
+SiteEmmer.main([
+  "--source-dir", System.get_env("SOURCE_DIR") || "content",
+  "--output-dir", System.get_env("OUTPUT_DIR") || "dist",
+  "--templates-dir", System.get_env("TEMPLATES_DIR") || "templates",
+  "--assets-dir", System.get_env("ASSETS_DIR") || "assets"
+] ++ (if System.get_env("VERBOSE") == "true", do: ["--verbose"], else: []))
+'
 
 echo "✅ Site built successfully!"
 echo "📁 Output directory: $OUTPUT_DIR"

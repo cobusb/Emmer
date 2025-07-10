@@ -1,5 +1,5 @@
 defmodule CssBuilderTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   test "extract_classes_from_content extracts Tailwind classes" do
     html_content = """
@@ -139,7 +139,7 @@ defmodule CssBuilderTest do
   end
 
   test "build creates output directory if it doesn't exist" do
-    tmp = Path.join(System.tmp_dir!(), "css_output_test")
+    tmp = Path.join(System.tmp_dir!(), "css_output_test_#{:rand.uniform(10000)}")
     File.rm_rf!(tmp)
     File.mkdir_p!(tmp)
 
@@ -148,10 +148,6 @@ defmodule CssBuilderTest do
     File.write!(Path.join(tmp, "content/index.html"), """
     <div class="container">Content</div>
     """)
-
-    # Change to test directory
-    original_dir = File.cwd!()
-    File.cd!(tmp)
 
     # Create package.json for testing
     File.write!(Path.join(tmp, "package.json"), """
@@ -164,14 +160,22 @@ defmodule CssBuilderTest do
     }
     """)
 
+    # Change to test directory
+    original_dir = File.cwd!()
+
     try do
+      File.cd!(tmp)
+
       # Test that the build function doesn't crash
       # We'll just test the directory creation part
       assert File.exists?("content")
       assert File.exists?("package.json")
 
     after
+      # Change back to original directory
       File.cd!(original_dir)
+
+      # Clean up test directory
       File.rm_rf!(tmp)
     end
   end

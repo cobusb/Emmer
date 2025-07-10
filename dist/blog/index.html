@@ -1,67 +1,64 @@
 <!DOCTYPE html>
-<html>
+<html lang="af">
 <head>
-  <title>My Blog Post - Test Site</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blog - Vrye Gereformeerde Kerk Johannesburg</title>
+    <meta name="description" content="Latest news and updates from our church">
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-  <header>
-  <nav>
-    <a href="/">Home</a>
-    <a href="/blog/">Blog</a>
-    <a href="/about/">About</a>
-  </nav>
+<body class="bg-gray-50">
+    <header class="bg-white shadow-sm">
+    <nav class="container mx-auto px-4 py-4">
+        <div class="flex justify-between items-center">
+            <div class="text-xl font-bold text-gray-800">
+                Vrye Gereformeerde Kerk Johannesburg
+            </div>
+            <ul class="flex space-x-6">
+                <li><a href="/" class="text-gray-600 hover:text-gray-900">Tuis</a></li>
+                <li><a href="/eredienste/" class="text-gray-600 hover:text-gray-900">Eredienste</a></li>
+                <li><a href="/kontakons/" class="text-gray-600 hover:text-gray-900">Kontak</a></li>
+            </ul>
+        </div>
+    </nav>
 </header>
 
-  <main>
-    <h1>My Blog Post</h1>
-<p>This is a test blog post</p>
+
+    <main class="container mx-auto px-4 py-8">
+        <h1 class="text-4xl font-bold text-center mb-8">
+    Blog
+</h1>
 
 
-<div class="featured">
-  <h2>Featured: Featured Article</h2>
-  <p>This is featured content</p>
+
+<div class="grid gap-6">
+    
 </div>
+    </main>
 
-
-
-<span class="tag">elixir</span>
-
-<span class="tag">static-site</span>
-
-<span class="tag">emmer</span>
-
-
-<aside>
-  <h3>Recent Posts</h3>
-  <ul>
-    
-    <li><a href="/post1/">Post 1</a></li>
-    
-    <li><a href="/post2/">Post 2</a></li>
-    
-  </ul>
-</aside>
-
-
-<div class="content">
-  # Blog Post Content
-
-This is the **markdown content** that should be rendered.
-
-## Features
-- Liquid templating
-- Layouts and includes
-- YAML data integration
-- Markdown support
-
-</div>
-
-<footer>
-  <p>© 2025 Test Site</p>
-</footer>
-  </main>
-  <footer>
-  <p>Built with Emmer</p>
+    <footer class="bg-gray-800 text-white mt-12">
+    <div class="container mx-auto px-4 py-8">
+        <div class="grid md:grid-cols-3 gap-8">
+            <div>
+                <h3 class="text-lg font-semibold mb-4">Vrye Gereformeerde Kerk Johannesburg</h3>
+                <p class="text-gray-300">Ons is 'n gemeenskap van Christene wat die Here aanbid</p>
+            </div>
+            <div>
+                <h3 class="text-lg font-semibold mb-4">Kontak</h3>
+                <p class="text-gray-300">14 Cornelis Straat, Johannesburg</p>
+                <p class="text-gray-300">Tel: +27 83 326 4597</p>
+                <p class="text-gray-300">Email: skriba@vgkjhb.org.za</p>
+            </div>
+            <div>
+                <h3 class="text-lg font-semibold mb-4">Eredienste</h3>
+                <p class="text-gray-300">Sondag: 10:00</p>
+                <p class="text-gray-300">Woensdag: 19:00</p>
+            </div>
+        </div>
+        <div class="border-t border-gray-700 mt-8 pt-8 text-center text-gray-300">
+            <p>&copy; 2025 Vrye Gereformeerde Kerk Johannesburg. Alle regte voorbehou.</p>
+        </div>
+    </div>
 </footer>
 
 </body>

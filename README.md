@@ -52,6 +52,82 @@ your-site/
    npm install
    ```
 
+## Creating a New Site
+
+The easiest way to get started with Emmer is to use the built-in project generator:
+
+```bash
+# Generate a new site with DaisyUI templates and deployment workflow
+mix emmer.new my-awesome-site
+
+# Navigate to your new project
+cd my-awesome-site
+
+# Install dependencies
+mix deps.get
+
+# Build your site
+./bin/build
+```
+
+This will create a complete project structure with:
+
+- **DaisyUI templates** with dark/light mode support
+- **Sample content** (Home, About, Blog, Contact pages)
+- **GitHub Actions workflow** for automatic builds
+- **Tailwind CSS** with optimized production builds
+- **Deployment configuration** (rsync/scp examples)
+
+### Generated Project Structure
+
+```
+my-awesome-site/
+├── content/                    # Your content pages
+│   ├── home/
+│   │   ├── index.html         # Home page
+│   │   └── index.yaml         # Home page data
+│   ├── about/
+│   │   ├── index.html         # About page
+│   │   └── index.yaml         # About page data
+│   ├── blog/
+│   │   ├── index.html         # Blog page
+│   │   └── index.yaml         # Blog page data
+│   └── contact/
+│       ├── index.html         # Contact page
+│       └── index.yaml         # Contact page data
+├── templates/                  # Layout templates
+│   ├── layout.html            # Main layout with DaisyUI
+│   ├── header.html            # Navigation header
+│   └── footer.html            # Site footer
+├── assets/                    # Static assets
+│   ├── css/
+│   └── js/
+├── bin/                       # Build scripts
+│   └── build                 # Main build script
+├── .github/                   # GitHub Actions
+│   └── workflows/
+│       └── deploy.yml         # Deployment workflow
+├── tailwind.config.js         # Tailwind configuration
+├── package.json               # Node.js dependencies
+└── README.md                  # Project documentation
+```
+
+### Customizing Your Site
+
+1. **Edit content**: Modify files in `content/` to change your site's content
+2. **Customize templates**: Update `templates/` to change the look and feel
+3. **Add pages**: Create new folders in `content/` with `index.html` and `index.yaml`
+4. **Deploy**: Push to GitHub to trigger automatic builds, or deploy manually
+
+### Manual Setup
+
+If you prefer to set up your project manually:
+
+1. Create your project structure following the sample above
+2. Copy the build script from `bin/build` in this repository
+3. Set up Tailwind CSS with `tailwind.config.js` and `package.json`
+4. Configure your deployment workflow
+
 ## Usage
 
 ### Local Development
@@ -59,20 +135,35 @@ your-site/
 Build the site locally:
 
 ```bash
-# Using the CLI script (includes CSS generation)
+# Using the build script (includes CSS generation)
 ./bin/build
 
-# Or using Elixir directly
-elixir -e "SiteEmmer.build()"
+# Or using Elixir directly (if Emmer is a dependency)
+mix run -e 'SiteEmmer.main(["--source-dir", "content", "--output-dir", "dist", "--templates-dir", "templates"])'
 
 # With custom directories
-./bin/build --source-dir content --output-dir dist --templates-dir templates
+./bin/build my-content my-dist my-templates
 
 # Build CSS only
 npm run build:css:prod
 
 # Build CSS in watch mode (development)
 npm run build:css
+```
+
+### Using Emmer as a Dependency
+
+Add to your `mix.exs`:
+```elixir
+defp deps do
+  [
+    {:emmer, git: "https://github.com/cobusb/Emmer.git", branch: "master"}
+  ]
+end
+```
+Then build your site with:
+```sh
+mix run -e 'SiteEmmer.main(["--source-dir", "content", "--output-dir", "dist", "--templates-dir", "templates"])'
 ```
 
 ### GitHub Actions Build
@@ -248,7 +339,7 @@ Access data using Liquid syntax:
 You can specify custom directories when building:
 
 ```bash
-./bin/build --source-dir my-content --output-dir my-dist --templates-dir my-templates
+./bin/build my-content my-dist my-templates
 ```
 
 ### GitHub Pages
