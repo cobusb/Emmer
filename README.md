@@ -1,6 +1,6 @@
 # Emmer - Static Site Generator
 
-A powerful static site generator built in Elixir that crawls folders for HTML and YAML files, matches them up, and generates content using Solid templating.
+A static site generator built in Elixir that crawls folders for HTML and YAML files, matches them up, and generates content using Solid templating.
 
 ## Features
 
@@ -8,11 +8,11 @@ A powerful static site generator built in Elixir that crawls folders for HTML an
 - **YAML data files**: Separate data from presentation
 - **Layout system**: Use layouts with `{% layout "layout.html" %}`
 - **Include system**: Include reusable components with `{% include "header.html" %}`
-- **Solid templating**: Full Liquid-compatible templating engine
-- **GitHub Actions integration**: Automatic deployment to GitHub Pages
+- **Solid templating**: Liquid-compatible templating engine
+- **GitHub Actions integration**: Automatic builds with flexible deployment options
 - **Local development**: Build and test locally
 
-## Project Structure
+## Sample Project Structure
 
 ```
 your-site/
@@ -24,7 +24,7 @@ your-site/
 │   ├── eredienste/
 │   │   ├── index.html         # Services page content
 │   │   └── index.yaml         # Services page data
-│   └── kontakons/
+│   └── contact/
 │       ├── index.html         # Contact page content
 │       └── index.yaml         # Contact page data
 ├── templates/                  # Reusable templates
@@ -62,9 +62,45 @@ elixir -e "SiteEmmer.build()"
 ./bin/build --source-dir content --output-dir dist --templates-dir templates
 ```
 
-### GitHub Actions Deployment
+### GitHub Actions Build
 
-The site will automatically build and deploy to GitHub Pages when you push to the `main` branch.
+The site will automatically build when you push to the `main` branch. The built site is available as a downloadable artifact.
+
+### Deployment Options
+
+The build process creates a `dist/` directory with your static site. You can deploy this to any web server:
+
+#### GitHub Pages
+Add this step to your workflow:
+```yaml
+- name: Deploy to GitHub Pages
+  if: github.ref == 'refs/heads/main'
+  uses: peaceiris/actions-gh-pages@v3
+  with:
+    github_token: ${{ secrets.GITHUB_TOKEN }}
+    publish_dir: ./dist
+```
+
+#### Custom Server (rsync)
+Add this step to your workflow:
+```yaml
+- name: Deploy to server
+  if: github.ref == 'refs/heads/main'
+  run: |
+    rsync -avz --delete dist/ user@your-server.com:/var/www/html/
+```
+
+#### Custom Server (scp)
+Add this step to your workflow:
+```yaml
+- name: Deploy to server
+  if: github.ref == 'refs/heads/main'
+  run: |
+    scp -r dist/* user@your-server.com:/var/www/html/
+```
+
+#### Netlify/Vercel
+Connect your repository to Netlify or Vercel and set the build directory to `dist/`.
 
 ## Content Format
 
@@ -204,13 +240,11 @@ You can specify custom directories when building:
 
 ### GitHub Pages
 
-To enable GitHub Pages:
+To enable GitHub Pages, add the deployment step to your workflow as shown in the deployment options above, then:
 
 1. Go to your repository settings
 2. Navigate to "Pages"
 3. Set source to "GitHub Actions"
-
-The workflow will automatically deploy to GitHub Pages when you push to the main branch.
 
 ## Development
 
