@@ -84,9 +84,11 @@ cd my-awesome-site
 # Install dependencies
 mix deps.get
 
-# Build your site
+# Build your site (includes CSS generation)
 ./bin/build
 ```
+
+**Note**: The build script automatically generates optimized CSS using Tailwind CLI. Make sure you have Node.js installed for CSS generation.
 
 This will create a complete project structure with:
 
@@ -144,7 +146,8 @@ If you prefer to set up your project manually:
 1. Create your project structure following the sample above
 2. Copy the build script from `bin/build` in this repository
 3. Set up Tailwind CSS with `tailwind.config.js` and `package.json`
-4. Configure your deployment workflow
+4. Install Node.js dependencies: `npm install`
+5. Configure your deployment workflow
 
 ## Usage
 
@@ -354,12 +357,26 @@ Access data using Liquid syntax:
 
 ## Configuration
 
+### CSS Generation
+
+Emmer automatically generates optimized CSS using Tailwind CLI:
+
+- **Development**: `npm run build:css` (watches for changes)
+- **Production**: `npm run build:css:prod` (minified output)
+- **Automatic**: The `./bin/build` script includes CSS generation
+
+The CSS is generated from `assets/css/input.css` and output to `assets/css/tailwind.css`.
+
 ### Custom Directories
 
 You can specify custom directories when building:
 
 ```bash
+# Using the build script
 ./bin/build my-content my-dist my-templates
+
+# Using Elixir directly
+mix run -e 'SiteEmmer.main(["--source-dir", "my-content", "--output-dir", "my-dist", "--templates-dir", "my-templates"])'
 ```
 
 ### GitHub Pages
@@ -419,7 +436,7 @@ jobs:
 
     - name: Build site
       run: |
-        elixir -e "SiteEmmer.build()"
+        mix run -e 'SiteEmmer.main(["--source-dir", "content", "--output-dir", "dist", "--templates-dir", "templates"])'
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
