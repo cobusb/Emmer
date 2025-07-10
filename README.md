@@ -81,8 +81,8 @@ mix emmer.new my-awesome-site
 # Navigate to your new project
 cd my-awesome-site
 
-# Install dependencies
-mix deps.get
+# Install Node.js dependencies (for CSS generation)
+npm install
 
 # Build your site (includes CSS generation)
 ./bin/build
@@ -90,13 +90,14 @@ mix deps.get
 
 **Note**: The build script automatically generates optimized CSS using Tailwind CLI. Make sure you have Node.js installed for CSS generation.
 
-This will create a complete project structure with:
+This will create a complete standalone static site with:
 
 - **DaisyUI templates** with dark/light mode support
 - **Sample content** (Home, About, Blog, Contact pages)
 - **GitHub Actions workflow** for automatic builds
 - **Tailwind CSS** with optimized production builds
 - **Deployment configuration** (rsync/scp examples)
+- **No Elixir dependencies** - the generated site is completely standalone
 
 ### Generated Project Structure
 
@@ -132,6 +133,8 @@ my-awesome-site/
 └── README.md                  # Project documentation
 ```
 
+**Note**: This is a standalone static site with no Elixir dependencies. The build script uses Elixir via `mix run -e` but doesn't require a `mix.exs` file or Elixir dependencies in the generated project.
+
 ### Customizing Your Site
 
 1. **Edit content**: Modify files in `content/` to change your site's content
@@ -149,18 +152,17 @@ If you prefer to set up your project manually:
 4. Install Node.js dependencies: `npm install`
 5. Configure your deployment workflow
 
+**Note**: The generated sites are standalone static sites. They use Elixir for building but don't require Elixir dependencies or a `mix.exs` file in the generated project.
+
 ## Usage
 
-### Local Development
+### Standalone Sites (Generated with `mix emmer.new`)
 
-Build the site locally:
+For sites generated with the project generator:
 
 ```bash
 # Using the build script (includes CSS generation)
 ./bin/build
-
-# Or using Elixir directly
-mix run -e 'SiteEmmer.main(["--source-dir", "content", "--output-dir", "dist", "--templates-dir", "templates"])'
 
 # With custom directories
 ./bin/build my-content my-dist my-templates
@@ -174,7 +176,7 @@ npm run build:css
 
 ### Using Emmer as a Dependency
 
-If you've added Emmer as a dependency to your project, build your site with:
+If you've added Emmer as a dependency to your own Elixir project, build your site with:
 ```bash
 mix run -e 'SiteEmmer.main(["--source-dir", "content", "--output-dir", "dist", "--templates-dir", "templates"])'
 ```
@@ -187,6 +189,18 @@ SiteEmmer.build([
   templates_dir: "templates",
   verbose: true
 ])
+```
+
+### Local Development (Emmer Project)
+
+For development of the Emmer project itself:
+
+```bash
+# Using the build script (includes CSS generation)
+./bin/build
+
+# Or using Elixir directly
+mix run -e 'SiteEmmer.main(["--source-dir", "content", "--output-dir", "dist", "--templates-dir", "templates"])'
 ```
 
 ### GitHub Actions Build
