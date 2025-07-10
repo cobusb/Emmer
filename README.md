@@ -260,6 +260,56 @@ To enable GitHub Pages, add the deployment step to your workflow as shown in the
 1. Add HTML files to the `templates/` directory
 2. Reference them in your content files using `{% include "template.html" %}`
 
+### GitHub Actions Workflow
+
+To enable automatic builds on GitHub, create `.github/workflows/build.yml`:
+
+```yaml
+name: Build Static Site
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Elixir
+      uses: erlef/setup-beam@v1
+      with:
+        elixir-version: '1.18.4'
+        otp-version: '26.0'
+
+    - name: Install dependencies
+      run: |
+        mix local.hex --force
+        mix local.rebar --force
+        mix deps.get
+
+    - name: Build site
+      run: |
+        elixir -e "SiteEmmer.build()"
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: site-build
+        path: dist/
+        retention-days: 30
+```
+
+This workflow will:
+- Build your site on every push to main
+- Make the built site available as a downloadable artifact
+- Allow you to add custom deployment steps as needed
+
 ## License
 
 MIT License
