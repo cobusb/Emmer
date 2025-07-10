@@ -120,16 +120,12 @@ defmodule SiteEmmer do
           yaml_file = base_name <> ".yaml"
           yaml_path = Path.join(dir_path, yaml_file)
 
-          markdown_file = base_name <> ".md"
-          markdown_path = Path.join(dir_path, markdown_file)
-
           yaml_exists = File.exists?(yaml_path)
           markdown_exists = File.exists?(markdown_path)
 
           if verbose do
             IO.puts("  📄 Found: #{html_file}")
             if yaml_exists, do: IO.puts("    📄 Data: #{yaml_file}")
-            if markdown_exists, do: IO.puts("    📄 Content: #{markdown_file}")
           end
 
           [{html_path, if(yaml_exists, do: yaml_path, else: nil), if(markdown_exists, do: markdown_path, else: nil)}]
@@ -141,19 +137,12 @@ defmodule SiteEmmer do
     end
   end
 
-  def build_page(html_file, yaml_file, markdown_file, site_data, templates, output_dir, verbose \\ false) do
+  def build_page(html_file, yaml_file, site_data, templates, output_dir, verbose \\ false) do
     # Load page-specific data
     page_data = if yaml_file, do: load_yaml(yaml_file), else: %{}
 
     # Load HTML content
     html_content = File.read!(html_file)
-
-    # Load Markdown content if it exists
-    markdown_content = if markdown_file do
-      File.read!(markdown_file)
-    else
-      nil
-    end
 
     # Extract layout and content
     {layout_name, content} = extract_layout_and_content(html_content)
@@ -162,7 +151,6 @@ defmodule SiteEmmer do
     context = Map.merge(site_data, %{
       "page" => Map.get(page_data, "page", %{}),
       "content" => content,
-      "markdown" => markdown_content,
       "current_year" => Date.utc_today().year
     })
 
