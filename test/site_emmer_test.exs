@@ -286,18 +286,16 @@ site:
       "sidebar" => sidebar_template
     }
 
-    # Change to temp directory and build the page
-    File.cd!(tmp, fn ->
-      SiteEmmer.build_page(
-        "content/blog/index.html",
-        "content/blog/index.yaml",
-        "content/blog/index.md",
-        site_data,
-        templates,
-        "dist",
-        false
-      )
-    end)
+    # Build the page with absolute paths
+    SiteEmmer.build_page(
+      Path.join(tmp, "content/blog/index.html"),
+      Path.join(tmp, "content/blog/index.yaml"),
+      Path.join(tmp, "content/blog/index.md"),
+      site_data,
+      templates,
+      Path.join(tmp, "dist"),
+      false
+    )
 
     # Read the generated output
     output_path = Path.join(tmp, "dist/blog/index.html")
@@ -349,18 +347,16 @@ site:
 
     File.write!(Path.join(tmp, "content/simple/index.html"), html_content)
 
-    # Change to temp directory and build the page
-    File.cd!(tmp, fn ->
-      SiteEmmer.build_page(
-        "content/simple/index.html",
-        nil,
-        nil,
-        %{"site" => %{"name" => "Simple Site"}},
-        %{},
-        "dist",
-        false
-      )
-    end)
+    # Build the page with absolute paths
+    SiteEmmer.build_page(
+      Path.join(tmp, "content/simple/index.html"),
+      nil,
+      nil,
+      %{"site" => %{"name" => "Simple Site"}},
+      %{},
+      Path.join(tmp, "dist"),
+      false
+    )
 
     # Read the generated output
     output_path = Path.join(tmp, "dist/simple/index.html")
@@ -446,23 +442,21 @@ site:
     File.write!(Path.join(tmp, "templates/widget.html"), widget_template)
     File.write!(Path.join(tmp, "templates/footer.html"), footer_template)
 
-    # Change to temp directory and build the page
-    File.cd!(tmp, fn ->
-      SiteEmmer.build_page(
-        "content/nested/index.html",
-        "content/nested/index.yaml",
-        nil,
-        %{"site" => %{"name" => "Nested Site"}},
-        %{
-          "nested" => nested_layout,
-          "nav" => nav_template,
-          "widget" => widget_template,
-          "footer" => footer_template
-        },
-        "dist",
-        false
-      )
-    end)
+    # Build the page with absolute paths
+    SiteEmmer.build_page(
+      Path.join(tmp, "content/nested/index.html"),
+      Path.join(tmp, "content/nested/index.yaml"),
+      nil,
+      %{"site" => %{"name" => "Nested Site"}},
+      %{
+        "nested" => nested_layout,
+        "nav" => nav_template,
+        "widget" => widget_template,
+        "footer" => footer_template
+      },
+      Path.join(tmp, "dist"),
+      false
+    )
 
     # Read the generated output
     output_path = Path.join(tmp, "dist/nested/index.html")
@@ -507,18 +501,16 @@ site:
     File.write!(Path.join(tmp, "content/test/index.html"), html_content)
     File.write!(Path.join(tmp, "content/test/index.yaml"), yaml_content)
 
-    # Change to temp directory and build the page
-    File.cd!(tmp, fn ->
-      SiteEmmer.build_page(
-        "content/test/index.html",
-        "content/test/index.yaml",
-        nil,
-        %{},
-        %{},
-        "dist",
-        false
-      )
-    end)
+    # Build the page with absolute paths
+    SiteEmmer.build_page(
+      Path.join(tmp, "content/test/index.html"),
+      Path.join(tmp, "content/test/index.yaml"),
+      nil,
+      %{},
+      %{},
+      Path.join(tmp, "dist"),
+      false
+    )
 
     # Read the generated output
     output_path = Path.join(tmp, "dist/test/index.html")

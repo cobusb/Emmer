@@ -167,8 +167,22 @@ defmodule SiteEmmer do
     })
 
     # Determine output path
-    relative_path = Path.relative_to(html_file, "content")
-    output_path = Path.join(output_dir, relative_path)
+    # Extract the subdirectory name from the content path
+    # For /tmp/emmer_test/content/simple/index.html, we want "simple/index.html"
+    parts = Path.split(html_file)
+    # Find the index of "content" in the path
+    content_index = Enum.find_index(parts, fn part -> part == "content" end)
+    {output_path, relative_path} =
+      if content_index do
+        # Get everything after "content"
+        relative_parts = Enum.drop(parts, content_index + 1)
+        relative_path = Path.join(relative_parts)
+        {Path.join(output_dir, relative_path), relative_path}
+      else
+        # Fallback: use the filename
+        filename = Path.basename(html_file)
+        {Path.join(output_dir, filename), filename}
+      end
 
     # Ensure output directory exists
     output_dir_path = Path.dirname(output_path)
