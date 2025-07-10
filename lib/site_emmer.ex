@@ -1,6 +1,6 @@
 defmodule SiteEmmer do
   @moduledoc """
-  A comprehensive static site generator that crawls folders for HTML, YAML, and Markdown files,
+  A comprehensive static site generator that crawls folders for HTML and YAML files,
   matches them up, and generates content using Solid templating.
   """
 
@@ -32,8 +32,8 @@ defmodule SiteEmmer do
     content_files = find_all_content_files(source_dir, verbose)
 
     # Build each page
-    Enum.each(content_files, fn {html_file, yaml_file, markdown_file} ->
-      build_page(html_file, yaml_file, markdown_file, site_data, templates, output_dir, verbose)
+    Enum.each(content_files, fn {html_file, yaml_file} ->
+      build_page(html_file, yaml_file, site_data, templates, output_dir, verbose)
     end)
 
     # Copy static assets
@@ -111,7 +111,6 @@ defmodule SiteEmmer do
       {:ok, files} ->
         html_files = Enum.filter(files, &String.ends_with?(&1, ".html"))
         _yaml_files = Enum.filter(files, &String.ends_with?(&1, ".yaml"))
-        _markdown_files = Enum.filter(files, &String.ends_with?(&1, ".md"))
 
         Enum.flat_map(html_files, fn html_file ->
           html_path = Path.join(dir_path, html_file)
@@ -121,14 +120,13 @@ defmodule SiteEmmer do
           yaml_path = Path.join(dir_path, yaml_file)
 
           yaml_exists = File.exists?(yaml_path)
-          markdown_exists = File.exists?(markdown_path)
 
           if verbose do
             IO.puts("  📄 Found: #{html_file}")
             if yaml_exists, do: IO.puts("    📄 Data: #{yaml_file}")
           end
 
-          [{html_path, if(yaml_exists, do: yaml_path, else: nil), if(markdown_exists, do: markdown_path, else: nil)}]
+          [{html_path, if(yaml_exists, do: yaml_path, else: nil)}]
         end)
 
       {:error, reason} ->
@@ -274,7 +272,7 @@ defmodule SiteEmmer do
   def generate_sitemap(content_files, output_dir, site_data, verbose \\ false) do
     base_url = Map.get(site_data, "site", %{})["url"] || "https://example.com"
 
-    urls = Enum.map(content_files, fn {html_file, _, _} ->
+    urls = Enum.map(content_files, fn {html_file, _} ->
       # Extract the directory name from the file path
       # For paths like "/tmp/emmer_test/home/index.html", we want "home"
       parts = Path.split(html_file)
@@ -338,7 +336,7 @@ defmodule SiteEmmer do
   defp watch_loop(opts) do
     receive do
       {:file_event, _pid, {path, _events}} ->
-        if String.ends_with?(path, [".html", ".yaml", ".md"]) do
+        if String.ends_with?(path, [".html", ".yaml"]) do
           IO.puts("🔄 File changed: #{path}")
           build(opts)
         end

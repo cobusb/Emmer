@@ -54,17 +54,15 @@ site:
     assert html =~ "<body><p>Body</p></body>"
   end
 
-  test "find_files_in_directory matches html, yaml, and markdown files" do
+  test "find_files_in_directory matches html and yaml files" do
     tmp = Path.join(System.tmp_dir!(), "emmer_test")
     File.mkdir_p!(tmp)
     File.write!(Path.join(tmp, "index.html"), "<h1>Hi</h1>")
     File.write!(Path.join(tmp, "index.yaml"), "page:\n  title: Test")
-    File.write!(Path.join(tmp, "index.md"), "# Test Content")
     pairs = SiteEmmer.find_files_in_directory(tmp)
-    assert Enum.any?(pairs, fn {h, y, m} ->
+    assert Enum.any?(pairs, fn {h, y} ->
       String.ends_with?(h, "index.html") and
-      String.ends_with?(y, "index.yaml") and
-      String.ends_with?(m, "index.md")
+      String.ends_with?(y, "index.yaml")
     end)
     File.rm_rf!(tmp)
   end
@@ -91,8 +89,8 @@ site:
     File.mkdir_p!(tmp)
 
     content_files = [
-      {Path.join(tmp, "home/index.html"), nil, nil},
-      {Path.join(tmp, "about/index.html"), nil, nil}
+      {Path.join(tmp, "home/index.html"), nil},
+      {Path.join(tmp, "about/index.html"), nil}
     ]
 
     site_data = %{"site" => %{"url" => "https://example.com"}}
@@ -176,7 +174,7 @@ site:
     {% include "sidebar.html" %}
 
     <div class="content">
-      {{ markdown }}
+      <p>This is the content that should be rendered.</p>
     </div>
 
     <footer>
@@ -198,18 +196,7 @@ site:
         - "emmer"
     """
 
-    # Create Markdown content
-    markdown_content = """
-    # Blog Post Content
 
-    This is the **markdown content** that should be rendered.
-
-    ## Features
-    - Liquid templating
-    - Layouts and includes
-    - YAML data integration
-    - Markdown support
-    """
 
     # Create main layout template
     layout_template = """
@@ -261,7 +248,6 @@ site:
     # Write test files
     File.write!(Path.join(tmp, "content/blog/index.html"), html_content)
     File.write!(Path.join(tmp, "content/blog/index.yaml"), yaml_content)
-    File.write!(Path.join(tmp, "content/blog/index.md"), markdown_content)
     File.write!(Path.join(tmp, "templates/main.html"), layout_template)
     File.write!(Path.join(tmp, "templates/header.html"), header_template)
     File.write!(Path.join(tmp, "templates/footer.html"), footer_template)
@@ -290,7 +276,6 @@ site:
     SiteEmmer.build_page(
       Path.join(tmp, "content/blog/index.html"),
       Path.join(tmp, "content/blog/index.yaml"),
-      Path.join(tmp, "content/blog/index.md"),
       site_data,
       templates,
       Path.join(tmp, "dist"),
@@ -303,7 +288,6 @@ site:
     output_content = File.read!(output_path)
 
     # Verify the output contains expected content
-    # Note: YAML data should be loaded, Markdown is passed as raw text
     assert output_content =~ "My Blog Post"
     assert output_content =~ "This is a test blog post"
     assert output_content =~ "Featured Article"
@@ -311,13 +295,7 @@ site:
     assert output_content =~ "elixir"
     assert output_content =~ "static-site"
     assert output_content =~ "emmer"
-    # Markdown content is passed as raw text
-    assert output_content =~ "# Blog Post Content"
-    assert output_content =~ "**markdown content**"
-    assert output_content =~ "Liquid templating"
-    assert output_content =~ "Layouts and includes"
-    assert output_content =~ "YAML data integration"
-    assert output_content =~ "Markdown support"
+    assert output_content =~ "This is the content that should be rendered"
     assert output_content =~ "Test Site"
     assert output_content =~ "Recent Posts"
     assert output_content =~ "Post 1"
@@ -331,17 +309,17 @@ site:
     File.rm_rf!(tmp)
   end
 
-  test "build_page handles missing YAML and Markdown files gracefully" do
+  test "build_page handles missing YAML files gracefully" do
     tmp = Path.join(System.tmp_dir!(), "emmer_build_test2")
     File.rm_rf!(tmp)
     File.mkdir_p!(Path.join(tmp, "content/simple"))
     File.mkdir_p!(Path.join(tmp, "templates"))
     File.mkdir_p!(Path.join(tmp, "dist"))
 
-    # Create simple HTML content without YAML or Markdown
+    # Create simple HTML content without YAML
     html_content = """
     <h1>{{ site.name }}</h1>
-    <p>Simple page without YAML or Markdown</p>
+    <p>Simple page without YAML</p>
     <p>Current year: {{ current_year }}</p>
     """
 
@@ -350,7 +328,6 @@ site:
     # Build the page with absolute paths
     SiteEmmer.build_page(
       Path.join(tmp, "content/simple/index.html"),
-      nil,
       nil,
       %{"site" => %{"name" => "Simple Site"}},
       %{},
@@ -365,7 +342,7 @@ site:
 
     # Verify the output contains expected content
     assert output_content =~ "Simple Site"
-    assert output_content =~ "Simple page without YAML or Markdown"
+    assert output_content =~ "Simple page without YAML"
     assert output_content =~ "Current year: #{Date.utc_today().year}"
 
     File.rm_rf!(tmp)
@@ -446,7 +423,6 @@ site:
     SiteEmmer.build_page(
       Path.join(tmp, "content/nested/index.html"),
       Path.join(tmp, "content/nested/index.yaml"),
-      nil,
       %{"site" => %{"name" => "Nested Site"}},
       %{
         "nested" => nested_layout,
@@ -505,7 +481,6 @@ site:
     SiteEmmer.build_page(
       Path.join(tmp, "content/test/index.html"),
       Path.join(tmp, "content/test/index.yaml"),
-      nil,
       %{},
       %{},
       Path.join(tmp, "dist"),
