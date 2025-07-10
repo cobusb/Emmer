@@ -1,0 +1,3 @@
+# Coveralls configuration
+coverage_service: coveralls
+service_name: github

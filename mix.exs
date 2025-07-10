@@ -22,7 +22,7 @@ defmodule Emmer.MixProject do
       {:solid, "~> 1.0"},
       {:yaml_elixir, "~> 2.9"},
       {:file_system, "~> 1.1.0"},
-      {:excoveralls, "~> 0.18.5", only: :test}
+      {:excoveralls, "~> 0.18.5", only: [:test, :dev]}
     ]
   end
 end
