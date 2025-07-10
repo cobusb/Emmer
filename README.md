@@ -42,6 +42,24 @@ your-site/
 
 ## Installation
 
+### As a Dependency
+
+Add Emmer to your `mix.exs`:
+```elixir
+defp deps do
+  [
+    {:emmer, git: "https://github.com/cobusb/Emmer.git", branch: "main"}
+  ]
+end
+```
+
+Then install dependencies:
+```bash
+mix deps.get
+```
+
+### For Development
+
 1. Clone this repository
 2. Install Elixir dependencies:
    ```bash
@@ -138,7 +156,7 @@ Build the site locally:
 # Using the build script (includes CSS generation)
 ./bin/build
 
-# Or using Elixir directly (if Emmer is a dependency)
+# Or using Elixir directly
 mix run -e 'SiteEmmer.main(["--source-dir", "content", "--output-dir", "dist", "--templates-dir", "templates"])'
 
 # With custom directories
@@ -153,17 +171,19 @@ npm run build:css
 
 ### Using Emmer as a Dependency
 
-Add to your `mix.exs`:
-```elixir
-defp deps do
-  [
-    {:emmer, git: "https://github.com/cobusb/Emmer.git", branch: "master"}
-  ]
-end
-```
-Then build your site with:
-```sh
+If you've added Emmer as a dependency to your project, build your site with:
+```bash
 mix run -e 'SiteEmmer.main(["--source-dir", "content", "--output-dir", "dist", "--templates-dir", "templates"])'
+```
+
+Or use the build function directly:
+```elixir
+SiteEmmer.build([
+  source_dir: "content",
+  output_dir: "dist",
+  templates_dir: "templates",
+  verbose: true
+])
 ```
 
 ### GitHub Actions Build
