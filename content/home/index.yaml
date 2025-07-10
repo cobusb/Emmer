@@ -1,0 +1,12 @@
+page:
+  title: "Tuis"
+  description: "Welkom by ons gemeente"
+sermons:
+  - title: "Die Genade van God"
+    date: "2024-01-14"
+    preacher: "Ds. Smith"
+    scripture: "Efesiërs 2:8-9"
+  - title: "Die Liefde van Christus"
+    date: "2024-01-07"
+    preacher: "Ds. Johnson"
+    scripture: "Johannes 3:16"

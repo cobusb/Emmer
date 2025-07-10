@@ -1,0 +1,12 @@
+site:
+  name: "Vrye Gereformeerde Kerk Johannesburg"
+  description: "Ons is 'n gemeenskap van Christene wat die Here aanbid"
+  url: "https://vgkjhb.org.za"
+  contact:
+    address: "14 Cornelis Straat, Johannesburg"
+    phone: "+27 83 326 4597"
+    email: "skriba@vgkjhb.org.za"
+    maps_url: "https://maps.app.goo.gl/fojbDGZYkNQLaWsU6"
+  services:
+    sunday: "10:00"
+    wednesday: "19:00"

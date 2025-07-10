@@ -1,0 +1,16 @@
+page:
+  title: "Eredienste"
+  description: "Ons eredienste tye en inligting"
+services:
+  - day: "Sondag"
+    time: "10:00"
+    type: "Hooferediens"
+    description: "Ons hooferediens met preek en sakramente"
+  - day: "Woensdag"
+    time: "19:00"
+    type: "Gebedsaand"
+    description: "Gemeentelike gebedsaand"
+  - day: "Sondag"
+    time: "09:00"
+    type: "Sondagskool"
+    description: "Bybelonderrig vir kinders"

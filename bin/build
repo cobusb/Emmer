@@ -1,0 +1,40 @@
+#!/usr/bin/env elixir
+
+# CLI script for the static site generator
+# Usage: ./bin/build [options]
+# Options:
+#   -s, --source-dir DIR     Source directory (default: content)
+#   -o, --output-dir DIR     Output directory (default: dist)
+#   -t, --templates-dir DIR  Templates directory (default: templates)
+#   -a, --assets-dir DIR     Assets directory (default: assets)
+#   -v, --verbose            Enable verbose output
+#   --watch                  Watch for file changes and rebuild
+
+# Add the current directory to the code path
+Code.append_path(File.cwd!())
+
+# Parse command line arguments
+{opts, _args, _} = OptionParser.parse(System.argv(),
+  strict: [
+    source_dir: :string,
+    output_dir: :string,
+    templates_dir: :string,
+    assets_dir: :string,
+    verbose: :boolean,
+    watch: :boolean
+  ],
+  aliases: [
+    s: :source_dir,
+    o: :output_dir,
+    t: :templates_dir,
+    a: :assets_dir,
+    v: :verbose
+  ]
+)
+
+# Check if watch mode is requested
+if opts[:watch] do
+  SiteEmmer.watch(opts)
+else
+  SiteEmmer.build(opts)
+end

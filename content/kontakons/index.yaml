@@ -1,0 +1,15 @@
+page:
+  title: "Kontak"
+  description: "Kontak ons vir meer inligting"
+contact:
+  address: "14 Cornelis Straat, Johannesburg"
+  phone: "+27 83 326 4597"
+  email: "skriba@vgkjhb.org.za"
+  maps_url: "https://maps.app.goo.gl/fojbDGZYkNQLaWsU6"
+office_hours:
+  - day: "Maandag - Vrydag"
+    hours: "09:00 - 17:00"
+  - day: "Saterdag"
+    hours: "09:00 - 12:00"
+  - day: "Sondag"
+    hours: "Geskakel vir noodgevalle"

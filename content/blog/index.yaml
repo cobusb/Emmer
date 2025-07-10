@@ -1,0 +1,12 @@
+page:
+  title: "Blog"
+  description: "Latest news and updates from our church"
+posts:
+  - title: "Welcome to Our New Website"
+    date: "2024-01-15"
+    author: "Pastor Smith"
+    excerpt: "We're excited to launch our new website..."
+  - title: "Upcoming Events"
+    date: "2024-01-10"
+    author: "Church Office"
+    excerpt: "Check out what's happening this month..."
