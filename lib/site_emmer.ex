@@ -734,10 +734,15 @@ defmodule SiteEmmer do
     build(opts)
 
     # Watch for changes in the root directory
-    {:ok, watcher_pid} = FileSystem.start_link(dirs: [final_source_dir, final_templates_dir])
-    FileSystem.subscribe(watcher_pid)
-
-    watch_loop(opts, max_events)
+    case FileSystem.start_link(dirs: [final_source_dir, final_templates_dir]) do
+      {:ok, watcher_pid} ->
+        FileSystem.subscribe(watcher_pid)
+        watch_loop(opts, max_events)
+      :ignore ->
+        IO.puts("⚠️  File watching not available on this system")
+        IO.puts("   Running in build-only mode")
+        :ok
+    end
   end
 
   defp watch_loop(_opts, 0), do: :ok
