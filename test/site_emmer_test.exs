@@ -498,4 +498,178 @@ site:
 
     File.rm_rf!(tmp)
   end
+
+  test "watcher works with relative root_dir and triggers build" do
+    tmp = Path.join(System.tmp_dir!(), "emmer_watch_test")
+    File.rm_rf!(tmp)
+    File.mkdir_p!(Path.join(tmp, "content"))
+    File.mkdir_p!(Path.join(tmp, "templates"))
+    File.write!(Path.join(tmp, "content/index.html"), "<h1>Hello</h1>")
+    File.write!(Path.join(tmp, "templates/layout.html"), "<html>{{ content }}</html>")
+
+    # Run the watcher in a Task and kill it after a short delay
+    task = Task.async(fn ->
+      ExUnit.CaptureIO.capture_io(fn ->
+        # Should not raise
+        SiteEmmer.watch(root_dir: tmp, source_dir: "content", templates_dir: "templates", max_events: 1, verbose: true)
+      end)
+    end)
+
+    # Wait for watcher to start and do initial build
+    :timer.sleep(500)
+
+    # Touch a file to simulate a change (triggers one event)
+    File.write!(Path.join(tmp, "content/index.html"), "<h1>Hello again</h1>")
+    :timer.sleep(500)
+
+    # Wait for the watcher task to exit and capture output
+    output =
+      case Task.yield(task, 1000) || Task.shutdown(task, :brutal_kill) do
+        {:ok, result} -> result
+        _ -> flunk("Watcher task did not complete in time")
+      end
+
+    # Assert output contains expected lines
+    assert output =~ "👀 Watching for changes"
+    assert output =~ "Press Ctrl+C to stop watching"
+    assert output =~ "Built: index.html"
+    assert output =~ "File changed:"
+  end
+
+  test "build with root_dir makes all custom folders relative to root_dir" do
+    tmp = Path.join(System.tmp_dir!(), "emmer_custom_folders_test")
+    File.rm_rf!(tmp)
+
+    # Create custom folder structure
+    File.mkdir_p!(Path.join(tmp, "pages"))
+    File.mkdir_p!(Path.join(tmp, "layouts"))
+    File.mkdir_p!(Path.join(tmp, "public"))
+    File.mkdir_p!(Path.join(tmp, "pages/css"))  # CSS files go in css subfolder within source_dir
+
+    # Create content
+    File.write!(Path.join(tmp, "pages/index.html"), "<h1>Custom Content</h1>")
+    File.write!(Path.join(tmp, "layouts/main.html"), "<html>{{ content }}</html>")
+    File.write!(Path.join(tmp, "pages/css/style.css"), "body { color: red; }")  # CSS in css subfolder
+
+    # Build with custom folders
+    SiteEmmer.build([
+      root_dir: tmp,
+      source_dir: "pages",
+      templates_dir: "layouts",
+      output_dir: "public",
+      assets_dir: "static",
+      verbose: true
+    ])
+
+    # Verify output was created in custom location
+    assert File.exists?(Path.join(tmp, "public/index.html"))
+    assert File.exists?(Path.join(tmp, "public/css/style.css"))  # CSS copied to css subfolder
+
+    File.rm_rf!(tmp)
+  end
+
+  test "build with root_dir and partial custom folders" do
+    tmp = Path.join(System.tmp_dir!(), "emmer_partial_custom_test")
+    File.rm_rf!(tmp)
+
+    # Create mixed folder structure (some custom, some default)
+    File.mkdir_p!(Path.join(tmp, "content"))  # default
+    File.mkdir_p!(Path.join(tmp, "layouts"))  # custom
+    File.mkdir_p!(Path.join(tmp, "build"))    # custom
+    File.mkdir_p!(Path.join(tmp, "content/css"))   # CSS in css subfolder within source_dir
+
+    # Create content
+    File.write!(Path.join(tmp, "content/index.html"), "<h1>Mixed Content</h1>")
+    File.write!(Path.join(tmp, "layouts/main.html"), "<html>{{ content }}</html>")
+    File.write!(Path.join(tmp, "content/css/style.css"), "body { color: blue; }")  # CSS in css subfolder
+
+    # Build with partial custom folders
+    SiteEmmer.build([
+      root_dir: tmp,
+      templates_dir: "layouts",  # custom
+      output_dir: "build",       # custom
+      # source_dir and assets_dir use defaults
+      verbose: true
+    ])
+
+    # Verify output was created in custom location
+    assert File.exists?(Path.join(tmp, "build/index.html"))
+    assert File.exists?(Path.join(tmp, "build/css/style.css"))  # CSS copied to css subfolder
+
+    File.rm_rf!(tmp)
+  end
+
+  test "build with root_dir and only one custom folder" do
+    tmp = Path.join(System.tmp_dir!(), "emmer_single_custom_test")
+    File.rm_rf!(tmp)
+
+    # Create folder structure with only one custom folder
+    File.mkdir_p!(Path.join(tmp, "content"))   # default
+    File.mkdir_p!(Path.join(tmp, "templates")) # default
+    File.mkdir_p!(Path.join(tmp, "output"))    # custom
+    File.mkdir_p!(Path.join(tmp, "content/css"))    # CSS in css subfolder within source_dir
+
+    # Create content
+    File.write!(Path.join(tmp, "content/index.html"), "<h1>Single Custom</h1>")
+    File.write!(Path.join(tmp, "templates/layout.html"), "<html>{{ content }}</html>")
+    File.write!(Path.join(tmp, "content/css/style.css"), "body { color: green; }")  # CSS in css subfolder
+
+    # Build with only output_dir custom
+    SiteEmmer.build([
+      root_dir: tmp,
+      output_dir: "output",  # only custom folder
+      verbose: true
+    ])
+
+    # Verify output was created in custom location
+    assert File.exists?(Path.join(tmp, "output/index.html"))
+    assert File.exists?(Path.join(tmp, "output/css/style.css"))  # CSS copied to css subfolder
+
+    File.rm_rf!(tmp)
+  end
+
+  test "watch with root_dir and custom folders" do
+    tmp = Path.join(System.tmp_dir!(), "emmer_watch_custom_test")
+    File.rm_rf!(tmp)
+
+    # Create custom folder structure
+    File.mkdir_p!(Path.join(tmp, "pages"))
+    File.mkdir_p!(Path.join(tmp, "layouts"))
+    File.write!(Path.join(tmp, "pages/index.html"), "<h1>Watch Custom</h1>")
+    File.write!(Path.join(tmp, "layouts/main.html"), "<html>{{ content }}</html>")
+
+    # Run watcher with custom folders
+    task = Task.async(fn ->
+      ExUnit.CaptureIO.capture_io(fn ->
+        SiteEmmer.watch([
+          root_dir: tmp,
+          source_dir: "pages",
+          templates_dir: "layouts",
+          max_events: 1,
+          verbose: true
+        ])
+      end)
+    end)
+
+    # Wait for watcher to start
+    :timer.sleep(500)
+
+    # Trigger a file change
+    File.write!(Path.join(tmp, "pages/index.html"), "<h1>Updated</h1>")
+    :timer.sleep(500)
+
+    # Capture output
+    output =
+      case Task.yield(task, 1000) || Task.shutdown(task, :brutal_kill) do
+        {:ok, result} -> result
+        _ -> flunk("Watcher task did not complete in time")
+      end
+
+    # Verify watcher used custom paths
+    assert output =~ "pages"
+    assert output =~ "layouts"
+    assert output =~ "Built: index.html"
+
+    File.rm_rf!(tmp)
+  end
 end

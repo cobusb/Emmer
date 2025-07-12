@@ -23,6 +23,7 @@ defmodule SiteEmmer do
   end
 
   def build(opts \\ []) do
+    root_dir = Keyword.get(opts, :root_dir, File.cwd!())
     source_dir = Keyword.get(opts, :source_dir, "content")
     output_dir = Keyword.get(opts, :output_dir, "dist")
     templates_dir = Keyword.get(opts, :templates_dir, "templates")
@@ -30,40 +31,72 @@ defmodule SiteEmmer do
     verbose = Keyword.get(opts, :verbose, false)
     structured_errors = Keyword.get(opts, :structured_errors, false)
 
+    # Resolve root_dir to absolute path if it's relative
+    absolute_root_dir = if Path.relative_to_cwd(root_dir) == root_dir do
+      # Path is already absolute
+      root_dir
+    else
+      # Path is relative, expand it
+      Path.expand(root_dir)
+    end
+
+    # Make paths relative to root_dir if root_dir was explicitly provided
+    # This allows users to specify a root_dir and have all other paths be relative to it
+    {final_source_dir, final_output_dir, final_templates_dir, final_assets_dir} =
+      if Keyword.has_key?(opts, :root_dir) do
+        # root_dir was explicitly provided, make ALL paths relative to it
+        {
+          Path.join(absolute_root_dir, source_dir),
+          Path.join(absolute_root_dir, output_dir),
+          Path.join(absolute_root_dir, templates_dir),
+          Path.join(absolute_root_dir, assets_dir)
+        }
+      else
+        # root_dir was not provided, use paths as-is (backward compatibility)
+        {source_dir, output_dir, templates_dir, assets_dir}
+      end
+
+    # Change to root directory for the build
+    original_dir = File.cwd!()
+    File.cd!(absolute_root_dir)
+
     if verbose do
       IO.puts("🚀 Building static site...")
-      IO.puts("📁 Source: #{source_dir}")
-      IO.puts("📁 Output: #{output_dir}")
-      IO.puts("📁 Templates: #{templates_dir}")
-      IO.puts("📁 Assets: #{assets_dir}")
+      IO.puts("📁 Source: #{final_source_dir}")
+      IO.puts("📁 Output: #{final_output_dir}")
+      IO.puts("📁 Templates: #{final_templates_dir}")
+      IO.puts("📁 Assets: #{final_assets_dir}")
     end
 
     # Ensure output directory exists
-    File.mkdir_p!(output_dir)
+    File.mkdir_p!(final_output_dir)
 
     # Load global site data
-    site_data = load_site_data(source_dir, verbose)
+    site_data = load_site_data(final_source_dir, verbose)
 
     # Load templates
-    templates = load_templates(templates_dir, verbose)
+    templates = load_templates(final_templates_dir, verbose)
 
     # Find all content files
-    content_files = find_all_content_files(source_dir, verbose)
+    content_files = find_all_content_files(final_source_dir, verbose)
 
     # Build each page with error collection
     errors = Enum.flat_map(content_files, fn {html_file, yaml_file} ->
-      build_page_with_errors(html_file, yaml_file, site_data, templates, output_dir, verbose, structured_errors)
+      build_page_with_errors(html_file, yaml_file, site_data, templates, final_output_dir, verbose, structured_errors)
     end)
 
     # Copy static assets
-    copy_static_assets(source_dir, output_dir, assets_dir, verbose)
+    copy_static_assets(final_source_dir, final_output_dir, final_assets_dir, verbose)
 
     # Generate sitemap
-    generate_sitemap(content_files, output_dir, site_data, verbose)
+    generate_sitemap(content_files, final_output_dir, site_data, verbose)
 
     if verbose do
       IO.puts("✅ Site built successfully!")
     end
+
+    # Return to original directory
+    File.cd!(original_dir)
 
     # Return errors if structured_errors is enabled
     if structured_errors do
@@ -559,6 +592,7 @@ defmodule SiteEmmer do
   def main(args \\ []) do
     {opts, _, _} = OptionParser.parse(args,
       strict: [
+        root_dir: :string,
         source_dir: :string,
         output_dir: :string,
         templates_dir: :string,
@@ -567,6 +601,7 @@ defmodule SiteEmmer do
         structured_errors: :boolean
       ],
       aliases: [
+        r: :root_dir,
         s: :source_dir,
         o: :output_dir,
         t: :templates_dir,
@@ -580,31 +615,70 @@ defmodule SiteEmmer do
   end
 
   def watch(opts \\ []) do
+    root_dir = Keyword.get(opts, :root_dir, File.cwd!())
     source_dir = Keyword.get(opts, :source_dir, "content")
     templates_dir = Keyword.get(opts, :templates_dir, "templates")
+    max_events = Keyword.get(opts, :max_events, nil)
 
-    IO.puts("👀 Watching for changes in #{source_dir} and #{templates_dir}")
+    # Resolve root_dir to absolute path if it's relative
+    absolute_root_dir = if Path.relative_to_cwd(root_dir) == root_dir do
+      # Path is already absolute
+      root_dir
+    else
+      # Path is relative, expand it
+      Path.expand(root_dir)
+    end
+
+    # Make paths relative to root_dir if root_dir was explicitly provided
+    # This allows users to specify a root_dir and have all other paths be relative to it
+    {final_source_dir, final_templates_dir} =
+      if Keyword.has_key?(opts, :root_dir) do
+        # root_dir was explicitly provided, make ALL paths relative to it
+        {
+          Path.join(absolute_root_dir, source_dir),
+          Path.join(absolute_root_dir, templates_dir)
+        }
+      else
+        # root_dir was not provided, use paths as-is (backward compatibility)
+        {source_dir, templates_dir}
+      end
+
+    IO.puts("👀 Watching for changes in #{final_source_dir} and #{final_templates_dir}")
     IO.puts("Press Ctrl+C to stop watching")
 
     # Initial build
     build(opts)
 
-    # Watch for changes
-    FileSystem.start_link(dirs: [source_dir, templates_dir])
-    FileSystem.subscribe(self())
+    # Watch for changes in the root directory
+    {:ok, watcher_pid} = FileSystem.start_link(dirs: [final_source_dir, final_templates_dir])
+    FileSystem.subscribe(watcher_pid)
 
-    watch_loop(opts)
+    watch_loop(opts, max_events)
   end
 
-  defp watch_loop(opts) do
+  defp watch_loop(opts, nil) do
     receive do
       {:file_event, _pid, {path, _events}} ->
         if String.ends_with?(path, [".html", ".yaml"]) do
           IO.puts("🔄 File changed: #{path}")
           build(opts)
         end
-        watch_loop(opts)
+        watch_loop(opts, nil)
 
+      {:file_event, _pid, :stop} ->
+        IO.puts("👋 Stopping file watcher")
+    end
+  end
+
+  defp watch_loop(opts, 0), do: :ok
+  defp watch_loop(opts, n) when is_integer(n) and n > 0 do
+    receive do
+      {:file_event, _pid, {path, _events}} ->
+        if String.ends_with?(path, [".html", ".yaml"]) do
+          IO.puts("🔄 File changed: #{path}")
+          build(opts)
+        end
+        watch_loop(opts, n - 1)
       {:file_event, _pid, :stop} ->
         IO.puts("👋 Stopping file watcher")
     end
@@ -633,7 +707,7 @@ defmodule Mix.Tasks.Emmer.New do
       create_github_workflow()
       create_readme(project_name)
     end)
-    Mix.shell().info("\nProject '#{project_name}' created!\n\nTo get started:\n  cd #{project_name}\n  mix deps.get\n  ./bin/build\n")
+    Mix.shell().info("\nProject '#{project_name}' created!\n\nTo build your site, run this from your Emmer project:\n  ./bin/build ../#{project_name}\n\nOr, if you want to watch for changes and continuaklly build:\n  mix run -e 'SiteEmmer.watch([root_dir: \"../#{project_name}\"])'\n\nYou do NOT need to run mix deps.get in the site directory.\n\nHappy building!\n")
   end
 
   defp create_structure do

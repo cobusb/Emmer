@@ -22,6 +22,7 @@ export class EmmerTaskRunner {
   private buildProcess: ChildProcess | null = null;
 
   async runBuild(workspaceFolder: string, options: {
+    rootDir?: string;
     sourceDir?: string;
     outputDir?: string;
     templatesDir?: string;
@@ -29,9 +30,11 @@ export class EmmerTaskRunner {
     verbose?: boolean;
   } = {}): Promise<EmmerBuildResult> {
     return new Promise((resolve) => {
+      const rootDir = options.rootDir || '.';
       const args = [
         'run', '-e',
         `SiteEmmer.build_with_errors([
+          root_dir: "${rootDir}",
           source_dir: "${options.sourceDir || 'content'}",
           output_dir: "${options.outputDir || 'dist'}",
           templates_dir: "${options.templatesDir || 'templates'}",

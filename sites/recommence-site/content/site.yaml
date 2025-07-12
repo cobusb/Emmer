@@ -1,0 +1,3 @@
+site:
+  name: "My Emmer Site"
+  description: "A static site generated with Emmer and DaisyUI"

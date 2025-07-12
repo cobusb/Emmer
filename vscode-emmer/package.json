@@ -43,6 +43,11 @@
     "configuration": {
       "title": "Emmer",
       "properties": {
+        "emmer.rootDir": {
+          "type": "string",
+          "default": ".",
+          "description": "Root directory of the site (relative to workspace)"
+        },
         "emmer.sourceDir": {
           "type": "string",
           "default": "content",

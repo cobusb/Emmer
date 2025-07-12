@@ -13,6 +13,7 @@ interface EmmerError {
 }
 
 interface EmmerConfig {
+  rootDir: string;
   sourceDir: string;
   outputDir: string;
   templatesDir: string;
@@ -35,6 +36,7 @@ export class EmmerExtension {
   private loadConfig(): EmmerConfig {
     const config = vscode.workspace.getConfiguration('emmer');
     return {
+      rootDir: config.get('rootDir', '.'),
       sourceDir: config.get('sourceDir', 'content'),
       outputDir: config.get('outputDir', 'dist'),
       templatesDir: config.get('templatesDir', 'templates'),
@@ -83,7 +85,8 @@ export class EmmerExtension {
 
     const terminal = vscode.window.createTerminal('Emmer Build');
     terminal.show();
-    terminal.sendText(`cd "${workspaceFolder.uri.fsPath}" && mix run -e 'SiteEmmer.build(verbose: true)'`);
+    const rootPath = path.resolve(workspaceFolder.uri.fsPath, this.config.rootDir);
+    terminal.sendText(`cd "${rootPath}" && mix run -e 'SiteEmmer.build([root_dir: "${rootPath}", verbose: true])'`);
   }
 
   private async watchSite(): Promise<void> {
@@ -101,7 +104,8 @@ export class EmmerExtension {
     this.isWatching = true;
     const terminal = vscode.window.createTerminal('Emmer Watch');
     terminal.show();
-    terminal.sendText(`cd "${workspaceFolder.uri.fsPath}" && mix run -e 'SiteEmmer.watch(verbose: true)'`);
+    const rootPath = path.resolve(workspaceFolder.uri.fsPath, this.config.rootDir);
+    terminal.sendText(`cd "${rootPath}" && mix run -e 'SiteEmmer.watch([root_dir: "${rootPath}", verbose: true])'`);
   }
 
   private async validateTemplates(): Promise<void> {

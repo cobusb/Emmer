@@ -164,8 +164,11 @@ For sites generated with the project generator:
 # Using the build script (includes CSS generation)
 ./bin/build
 
+# Build site in separate directory
+./bin/build ../my-website
+
 # With custom directories
-./bin/build my-content my-dist my-templates
+./bin/build ../my-website my-content my-dist my-templates
 
 # Build CSS only
 npm run build:css:prod
@@ -178,12 +181,13 @@ npm run build:css
 
 If you've added Emmer as a dependency to your own Elixir project, build your site with:
 ```bash
-mix run -e 'SiteEmmer.main(["--source-dir", "content", "--output-dir", "dist", "--templates-dir", "templates"])'
+mix run -e 'SiteEmmer.main(["--root-dir", "../my-website", "--source-dir", "content", "--output-dir", "dist", "--templates-dir", "templates"])'
 ```
 
 Or use the build function directly:
 ```elixir
 SiteEmmer.build([
+  root_dir: "../my-website",
   source_dir: "content",
   output_dir: "dist",
   templates_dir: "templates",

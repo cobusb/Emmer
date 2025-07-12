@@ -4,32 +4,53 @@
 
 set -e
 
+# Show help if requested
+if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
+    echo "Usage: $0 [ROOT_DIR] [SOURCE_DIR] [OUTPUT_DIR] [TEMPLATES_DIR] [ASSETS_DIR] [VERBOSE]"
+    echo ""
+    echo "Arguments:"
+    echo "  ROOT_DIR      Root directory of the site (default: current directory)"
+    echo "  SOURCE_DIR    Source directory for content (default: content)"
+    echo "  OUTPUT_DIR    Output directory for built site (default: dist)"
+    echo "  TEMPLATES_DIR Templates directory (default: templates)"
+    echo "  ASSETS_DIR    Assets directory (default: assets)"
+    echo "  VERBOSE       Enable verbose output (default: false)"
+    echo ""
+    echo "Examples:"
+    echo "  $0                           # Build in current directory"
+    echo "  $0 ../my-website            # Build site in ../my-website"
+    echo "  $0 ../my-website content dist templates assets true"
+    exit 0
+fi
+
 # Default values
-SOURCE_DIR=${1:-"content"}
-OUTPUT_DIR=${2:-"dist"}
-TEMPLATES_DIR=${3:-"templates"}
-ASSETS_DIR=${4:-"assets"}
-VERBOSE=${5:-"false"}
+ROOT_DIR=${1:-"."}
+SOURCE_DIR=${2:-"content"}
+OUTPUT_DIR=${3:-"dist"}
+TEMPLATES_DIR=${4:-"templates"}
+ASSETS_DIR=${5:-"assets"}
+VERBOSE=${6:-"false"}
 
 echo "🏗️  Building Emmer static site..."
 
 # Check if Node.js and npm are available for CSS building
-if command -v npm &> /dev/null; then
+if command -v npm &> /dev/null && [ -f "$ROOT_DIR/package.json" ]; then
     echo "📦 Installing/updating Node.js dependencies..."
-    npm install --silent
+    cd "$ROOT_DIR" && npm install --silent
 
     echo "🎨 Building CSS..."
-    npm run build:css:prod
+    cd "$ROOT_DIR" && npm run build:css:prod
 else
-    echo "⚠️  Node.js not found. Skipping CSS build."
-    echo "   Install Node.js to enable automatic CSS generation."
+    echo "⚠️  Node.js not found or no package.json in $ROOT_DIR. Skipping CSS build."
+    echo "   Install Node.js and ensure package.json exists to enable automatic CSS generation."
 fi
 
 # Build the site
-echo "📄 Building site from $SOURCE_DIR to $OUTPUT_DIR..."
+echo "📄 Building site from $ROOT_DIR/$SOURCE_DIR to $ROOT_DIR/$OUTPUT_DIR..."
 
 mix run -e '
 SiteEmmer.main([
+  "--root-dir", System.get_env("ROOT_DIR") || ".",
   "--source-dir", System.get_env("SOURCE_DIR") || "content",
   "--output-dir", System.get_env("OUTPUT_DIR") || "dist",
   "--templates-dir", System.get_env("TEMPLATES_DIR") || "templates",
@@ -38,5 +59,5 @@ SiteEmmer.main([
 '
 
 echo "✅ Site built successfully!"
-echo "📁 Output directory: $OUTPUT_DIR"
-echo "🌐 Open $OUTPUT_DIR/index.html in your browser to view the site"
+echo "📁 Output directory: $ROOT_DIR/$OUTPUT_DIR"
+echo "🌐 Open $ROOT_DIR/$OUTPUT_DIR/index.html in your browser to view the site"
