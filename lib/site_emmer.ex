@@ -617,8 +617,6 @@ defmodule SiteEmmer do
 
     urls = Enum.map(content_files, fn {html_file, _} ->
       # Extract the URL path from the file path
-      # For paths like "/tmp/emmer_test/content/index.html", we want "/"
-      # For paths like "/tmp/emmer_test/content/about.html", we want "/about/"
       parts = Path.split(html_file)
       # Find the index of "content" in the path
       content_index = Enum.find_index(parts, fn part -> part == "content" end)
@@ -644,8 +642,19 @@ defmodule SiteEmmer do
           "/#{base_name}/"
         end
       else
-        # Fallback
-        "/"
+        # Handle paths without "content" directory (for tests)
+        filename = Path.basename(html_file)
+        dir_path = Path.dirname(html_file)
+        dir_name = Path.basename(dir_path)
+
+        if filename == "index.html" do
+          # For index.html in a directory, use the directory name
+          "/#{dir_name}/"
+        else
+          # For other files, use the filename without extension
+          base_name = Path.basename(filename, ".html")
+          "/#{base_name}/"
+        end
       end
 
       ~s(        <url>\n          <loc>#{base_url}#{url_path}</loc>\n          <lastmod>#{Date.utc_today()}</lastmod>\n        </url>)
