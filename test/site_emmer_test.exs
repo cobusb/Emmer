@@ -536,6 +536,39 @@ site:
     assert output =~ "File changed:"
   end
 
+  test "watcher does not crash and reports error on build failure" do
+    tmp = Path.join(System.tmp_dir!(), "emmer_watch_error_test")
+    File.rm_rf!(tmp)
+    File.mkdir_p!(Path.join(tmp, "content"))
+    File.mkdir_p!(Path.join(tmp, "templates"))
+    # Write invalid YAML (not a map)
+    File.write!(Path.join(tmp, "content/index.yaml"), "test")
+    File.write!(Path.join(tmp, "content/index.html"), "<h1>Test</h1>")
+    File.write!(Path.join(tmp, "templates/layout.html"), "<html>{{ content }}</html>")
+
+    # Overwrite with definitely invalid YAML
+    invalid_yaml = "page:\n  title: [unclosed bracket"
+    File.write!(Path.join(tmp, "content/index.yaml"), invalid_yaml)
+
+    # Let's also test the YAML parsing directly to see if it fails
+    yaml_path = Path.join(tmp, "content/index.yaml")
+    case SiteEmmer.load_yaml_with_errors(yaml_path) do
+      {:ok, _data} -> :ok
+      {:error, _error} -> :ok
+    end
+
+    output = ExUnit.CaptureIO.capture_io([:stdio, :stderr], fn ->
+      SiteEmmer.safe_build(root_dir: tmp)
+    end)
+
+    assert output =~ "Build completed with errors"
+    assert output =~ "[yaml]"
+    assert output =~ "Unfinished flow collection"
+    assert output =~ "Continuing to watch for changes"
+
+    File.rm_rf!(tmp)
+  end
+
   test "build with root_dir makes all custom folders relative to root_dir" do
     tmp = Path.join(System.tmp_dir!(), "emmer_custom_folders_test")
     File.rm_rf!(tmp)

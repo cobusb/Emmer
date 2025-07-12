@@ -58,6 +58,13 @@ defmodule SiteEmmer do
 
     # Change to root directory for the build
     original_dir = File.cwd!()
+    if not File.dir?(absolute_root_dir) do
+      IO.puts("❌ Error: root_dir '#{absolute_root_dir}' does not exist.")
+      IO.puts("Please check your path and try again or create the project using:")
+      IO.puts("  mix emmer.new #{absolute_root_dir}")
+      return = :error
+      return
+    end
     File.cd!(absolute_root_dir)
 
     if verbose do
@@ -198,19 +205,17 @@ defmodule SiteEmmer do
     end
   end
 
-  def build_page_with_errors(html_file, yaml_file, site_data, templates, output_dir, verbose \\ false, structured_errors \\ false) do
+  def build_page_with_errors(html_file, yaml_file, site_data, templates, output_dir, verbose \\ false, _structured_errors \\ false) do
     errors = []
 
     # Load page-specific data
-    page_data = if yaml_file do
+    {page_data, errors} = if yaml_file do
       case load_yaml_with_errors(yaml_file) do
-        {:ok, data} -> data
-        {:error, error} ->
-          errors = [error | errors]
-          %{}
+        {:ok, data} -> {data, errors}
+        {:error, error} -> {%{}, [error | errors]}
       end
     else
-      %{}
+      {%{}, errors}
     end
 
     # Load HTML content
@@ -225,7 +230,7 @@ defmodule SiteEmmer do
           type: :build,
           severity: :error
         }
-        errors = [error | errors]
+        _errors = [error | errors]
         ""
     end
 
@@ -234,11 +239,33 @@ defmodule SiteEmmer do
     errors = errors ++ layout_errors
 
     # Merge all data - extract page data from YAML
-    context = Map.merge(site_data, %{
-      "page" => Map.get(page_data, "page", %{}),
-      "content" => content,
-      "current_year" => Date.utc_today().year
-    })
+    {context, errors} =
+      if is_map(page_data) do
+        {
+          Map.merge(site_data, %{
+            "page" => Map.get(page_data, "page", %{}),
+            "content" => content,
+            "current_year" => Date.utc_today().year
+          }),
+          errors
+        }
+      else
+        error = %BuildError{
+          file: yaml_file || html_file,
+          line: 1,
+          column: 1,
+          message: "YAML file does not contain a map/object. Got: #{inspect(page_data)}",
+          type: :yaml,
+          severity: :error
+        }
+        {
+          Map.merge(site_data, %{
+            "content" => content,
+            "current_year" => Date.utc_today().year
+          }),
+          [error | errors]
+        }
+      end
 
     # Determine output path
     # Extract the subdirectory name from the content path
@@ -250,8 +277,19 @@ defmodule SiteEmmer do
       if content_index do
         # Get everything after "content"
         relative_parts = Enum.drop(parts, content_index + 1)
-        relative_path = Path.join(relative_parts)
-        {Path.join(output_dir, relative_path), relative_path}
+        filename = List.last(relative_parts)
+
+        # If it's index.html, keep it as is
+        # If it's something like about.html, output to about/index.html
+        if filename == "index.html" do
+          relative_path = Path.join(relative_parts)
+          {Path.join(output_dir, relative_path), relative_path}
+        else
+          # For files like about.html, create about/index.html
+          base_name = Path.basename(filename, ".html")
+          relative_path = Path.join([base_name, "index.html"])
+          {Path.join(output_dir, relative_path), relative_path}
+        end
       else
         # Fallback: use the filename
         filename = Path.basename(html_file)
@@ -284,7 +322,7 @@ defmodule SiteEmmer do
           type: :build,
           severity: :error
         }
-        errors = [error | errors]
+        _errors = [error | errors]
     end
 
     if verbose do
@@ -321,8 +359,19 @@ defmodule SiteEmmer do
       if content_index do
         # Get everything after "content"
         relative_parts = Enum.drop(parts, content_index + 1)
-        relative_path = Path.join(relative_parts)
-        {Path.join(output_dir, relative_path), relative_path}
+        filename = List.last(relative_parts)
+
+        # If it's index.html, keep it as is
+        # If it's something like about.html, output to about/index.html
+        if filename == "index.html" do
+          relative_path = Path.join(relative_parts)
+          {Path.join(output_dir, relative_path), relative_path}
+        else
+          # For files like about.html, create about/index.html
+          base_name = Path.basename(filename, ".html")
+          relative_path = Path.join([base_name, "index.html"])
+          {Path.join(output_dir, relative_path), relative_path}
+        end
       else
         # Fallback: use the filename
         filename = Path.basename(html_file)
@@ -349,7 +398,7 @@ defmodule SiteEmmer do
     end
   end
 
-  def extract_layout_and_content_with_errors(html_content, file_path) do
+  def extract_layout_and_content_with_errors(html_content, _file_path) do
     case Regex.run(~r/{%\s*layout\s+"([^"]+)"\s*%}(.*)/s, html_content) do
       [_, layout_name, content] ->
         # Strip .html extension to match template loading
@@ -425,7 +474,7 @@ defmodule SiteEmmer do
   def process_includes_with_errors(template, context, templates, file_path) do
     errors = []
 
-    template_with_includes = Regex.replace(~r/{%\s*include\s+"([^"]+)"\s*%}/, template, fn match, include_name ->
+    template_with_includes = Regex.replace(~r/{%\s*include\s+"([^"]+)"\s*%}/, template, fn _match, include_name ->
       # Strip .html extension to match template loading
       clean_include_name = Path.basename(include_name, ".html")
       include_template = Map.get(templates, clean_include_name, "")
@@ -436,14 +485,14 @@ defmodule SiteEmmer do
           {:ok, parsed_include} ->
             case Solid.render(parsed_include, context) do
               {:ok, rendered_text, include_errors} ->
-                errors = errors ++ Enum.map(include_errors, &solid_error_to_build_error(&1, file_path))
+                _errors = errors ++ Enum.map(include_errors, &solid_error_to_build_error(&1, file_path))
                 rendered_text
               {:error, include_errors, rendered_text} ->
-                errors = errors ++ Enum.map(include_errors, &solid_error_to_build_error(&1, file_path))
+                _errors = errors ++ Enum.map(include_errors, &solid_error_to_build_error(&1, file_path))
                 rendered_text
             end
           {:error, template_error} ->
-            errors = errors ++ Enum.map(template_error.errors, &solid_parser_error_to_build_error(&1, file_path))
+            _errors = errors ++ Enum.map(template_error.errors, &solid_parser_error_to_build_error(&1, file_path))
             ""
         end
       else
@@ -456,7 +505,7 @@ defmodule SiteEmmer do
           type: :include,
           severity: :error
         }
-        errors = [error | errors]
+        _errors = [error | errors]
         ""
       end
     end)
@@ -567,12 +616,38 @@ defmodule SiteEmmer do
     base_url = Map.get(site_data, "site", %{})["url"] || "https://example.com"
 
     urls = Enum.map(content_files, fn {html_file, _} ->
-      # Extract the directory name from the file path
-      # For paths like "/tmp/emmer_test/home/index.html", we want "home"
+      # Extract the URL path from the file path
+      # For paths like "/tmp/emmer_test/content/index.html", we want "/"
+      # For paths like "/tmp/emmer_test/content/about.html", we want "/about/"
       parts = Path.split(html_file)
-      # Find the directory name (second to last part for index.html files)
-      dir_name = Enum.at(parts, -2)
-      url_path = "/" <> dir_name
+      # Find the index of "content" in the path
+      content_index = Enum.find_index(parts, fn part -> part == "content" end)
+
+      url_path = if content_index do
+        # Get everything after "content"
+        relative_parts = Enum.drop(parts, content_index + 1)
+        filename = List.last(relative_parts)
+
+        if filename == "index.html" do
+          # For index.html, check if it's in a subdirectory
+          if length(relative_parts) > 1 do
+            # It's in a subdirectory like content/about/index.html
+            dir_name = Enum.at(relative_parts, 0)
+            "/#{dir_name}/"
+          else
+            # It's the root index.html
+            "/"
+          end
+        else
+          # For files like about.html, create /about/
+          base_name = Path.basename(filename, ".html")
+          "/#{base_name}/"
+        end
+      else
+        # Fallback
+        "/"
+      end
+
       ~s(        <url>\n          <loc>#{base_url}#{url_path}</loc>\n          <lastmod>#{Date.utc_today()}</lastmod>\n        </url>)
     end) |> Enum.join("\n")
 
@@ -656,12 +731,26 @@ defmodule SiteEmmer do
     watch_loop(opts, max_events)
   end
 
+  defp watch_loop(_opts, 0), do: :ok
+  defp watch_loop(opts, n) when is_integer(n) and n > 0 do
+    receive do
+      {:file_event, _pid, {path, _events}} ->
+        if String.ends_with?(path, [".html", ".yaml"]) do
+          IO.puts("🔄 File changed: #{path}")
+          safe_build(opts)
+        end
+        watch_loop(opts, n - 1)
+      {:file_event, _pid, :stop} ->
+        IO.puts("👋 Stopping file watcher")
+    end
+  end
+
   defp watch_loop(opts, nil) do
     receive do
       {:file_event, _pid, {path, _events}} ->
         if String.ends_with?(path, [".html", ".yaml"]) do
           IO.puts("🔄 File changed: #{path}")
-          build(opts)
+          safe_build(opts)
         end
         watch_loop(opts, nil)
 
@@ -670,17 +759,32 @@ defmodule SiteEmmer do
     end
   end
 
-  defp watch_loop(opts, 0), do: :ok
-  defp watch_loop(opts, n) when is_integer(n) and n > 0 do
-    receive do
-      {:file_event, _pid, {path, _events}} ->
-        if String.ends_with?(path, [".html", ".yaml"]) do
-          IO.puts("🔄 File changed: #{path}")
-          build(opts)
-        end
-        watch_loop(opts, n - 1)
-      {:file_event, _pid, :stop} ->
-        IO.puts("👋 Stopping file watcher")
+  def safe_build(opts) do
+    verbose = Keyword.get(opts, :verbose, false)
+
+    result =
+      try do
+        build_with_errors(opts)
+      rescue
+        error ->
+          if verbose do
+            IO.puts("❌ Build failed: #{Exception.message(error)}")
+          else
+            IO.puts("❌ Build failed")
+          end
+          IO.puts("   Continuing to watch for changes...")
+          :error
+      end
+
+    case result do
+      {:ok, errors} when is_list(errors) and length(errors) > 0 ->
+        IO.puts("❌ Build completed with errors:")
+        Enum.each(errors, fn err ->
+          IO.puts("  [#{err.type}] #{err.file}:#{err.line}:#{err.column} #{err.message}")
+        end)
+        IO.puts("   Continuing to watch for changes...")
+      _ ->
+        :ok
     end
   end
 end
@@ -698,6 +802,13 @@ defmodule Mix.Tasks.Emmer.New do
   @impl true
   def run([project_name]) do
     base = Path.expand(project_name)
+
+    if File.dir?(base) do
+      Mix.shell().error("❌ Error: Directory '#{project_name}' already exists.")
+      Mix.shell().error("Please choose a different name or remove the existing directory.")
+      System.halt(1)
+    end
+
     File.mkdir_p!(base)
     File.cd!(base, fn ->
       create_structure()
@@ -707,11 +818,16 @@ defmodule Mix.Tasks.Emmer.New do
       create_github_workflow()
       create_readme(project_name)
     end)
-    Mix.shell().info("\nProject '#{project_name}' created!\n\nTo build your site, run this from your Emmer project:\n  ./bin/build ../#{project_name}\n\nOr, if you want to watch for changes and continuaklly build:\n  mix run -e 'SiteEmmer.watch([root_dir: \"../#{project_name}\"])'\n\nYou do NOT need to run mix deps.get in the site directory.\n\nHappy building!\n")
+
+    # Calculate the relative path from the Emmer project directory to the new project
+    emmer_project_dir = File.cwd!()
+    relative_path = Path.relative_to(base, emmer_project_dir)
+
+    Mix.shell().info("\nProject '#{project_name}' created!\n\nTo build your site, run this from your Emmer project:\n  ./bin/build #{relative_path}\n\nOr, if you want to watch for changes and continuaklly build:\n  mix run -e 'SiteEmmer.watch([root_dir: \"#{relative_path}\"])'\n\nYou do NOT need to run mix deps.get in the site directory.\n\nHappy building!\n")
   end
 
   defp create_structure do
-    File.mkdir_p!("content/home")
+    File.mkdir_p!("content")
     File.mkdir_p!("content/about")
     File.mkdir_p!("content/blog")
     File.mkdir_p!("content/contact")
@@ -728,14 +844,14 @@ defmodule Mix.Tasks.Emmer.New do
   end
 
   defp create_content do
-    File.write!("content/home/index.html", "{% layout \"layout.html\" %}\n<h1 class=\"text-4xl font-bold mb-4\">Welcome to {{ site.name }}</h1>\n<p>This is your new Emmer site. Edit content/home/index.html to get started.</p>\n")
-    File.write!("content/home/index.yaml", "page:\n  title: Home\n")
-    File.write!("content/about/index.html", "{% layout \"layout.html\" %}\n<h1 class=\"text-3xl font-bold mb-4\">About Us</h1>\n<p>We are an awesome team using Emmer and DaisyUI!</p>\n")
-    File.write!("content/about/index.yaml", "page:\n  title: About Us\n")
-    File.write!("content/blog/index.html", "{% layout \"layout.html\" %}\n<h1 class=\"text-3xl font-bold mb-4\">Blog</h1>\n<p>Stay tuned for updates.</p>\n")
-    File.write!("content/blog/index.yaml", "page:\n  title: Blog\n")
-    File.write!("content/contact/index.html", "{% layout \"layout.html\" %}\n<h1 class=\"text-3xl font-bold mb-4\">Contact Us</h1>\n<p>Email: <a href=\"mailto:info@example.com\" class=\"link\">info@example.com</a></p>\n")
-    File.write!("content/contact/index.yaml", "page:\n  title: Contact Us\n")
+    File.write!("content/index.html", "{% layout \"layout.html\" %}\n<h1 class=\"text-4xl font-bold mb-4\">Welcome to {{ site.name }}</h1>\n<p>This is your new Emmer site. Edit content/index.html to get started.</p>\n")
+    File.write!("content/index.yaml", "page:\n  title: Home\n")
+    File.write!("content/about/about.html", "{% layout \"layout.html\" %}\n<h1 class=\"text-3xl font-bold mb-4\">About Us</h1>\n<p>We are an awesome team using Emmer and DaisyUI!</p>\n")
+    File.write!("content/about/about.yaml", "page:\n  title: About Us\n")
+    File.write!("content/blog/blog.html", blog_template())
+    File.write!("content/blog/blog.yaml", blog_yaml())
+    File.write!("content/contact/contact.html", "{% layout \"layout.html\" %}\n<h1 class=\"text-3xl font-bold mb-4\">Contact Us</h1>\n<p>Email: <a href=\"mailto:info@example.com\" class=\"link\">info@example.com</a></p>\n")
+    File.write!("content/contact/contact.yaml", "page:\n  title: Contact Us\n")
     File.write!("content/site.yaml", "site:\n  name: \"My Emmer Site\"\n  description: \"A static site generated with Emmer and DaisyUI\"\n")
   end
 
@@ -871,6 +987,91 @@ jobs:
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
         run: |
           rsync -avz --delete dist/ $DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH
+"""
+  end
+
+  defp blog_template do
+    """
+{% layout "layout.html" %}
+<h1 class="text-3xl font-bold mb-6">Blog</h1>
+
+<div class="grid gap-6">
+  {% for post in page.posts %}
+  <article class="card bg-base-100 shadow-xl">
+    <div class="card-body">
+      <h2 class="card-title text-2xl">{{ post.title }}</h2>
+      <div class="flex gap-4 text-sm text-base-content/70 mb-4">
+        <span>📅 {{ post.date }}</span>
+        <span>👤 {{ post.author }}</span>
+        {% if post.tags %}
+        <div class="flex gap-2">
+          {% for tag in post.tags %}
+          <span class="badge badge-primary badge-sm">{{ tag }}</span>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+      <div class="prose max-w-none">
+        {{ post.content }}
+      </div>
+      {% if post.read_more %}
+      <div class="card-actions justify-end mt-4">
+        <button class="btn btn-primary">Read More</button>
+      </div>
+      {% endif %}
+    </div>
+  </article>
+  {% endfor %}
+</div>
+"""
+  end
+
+  defp blog_yaml do
+    """
+page:
+  title: Blog
+  posts:
+    - title: "Getting Started with Emmer"
+      date: "2024-01-15"
+      author: "John Doe"
+      tags: ["tutorial", "emmer", "static-site"]
+      content: |
+        Welcome to the world of static site generation with Emmer!
+
+        This is a comprehensive guide that will walk you through the basics of creating beautiful, fast websites using Emmer and DaisyUI.
+
+        ## Key Features
+
+        - **Fast**: Static sites are incredibly fast
+        - **Secure**: No server-side vulnerabilities
+        - **Simple**: Easy to maintain and deploy
+
+        Stay tuned for more tutorials and tips!
+
+    - title: "The Power of YAML Multi-line Content"
+      date: "2024-01-10"
+      author: "Jane Smith"
+      tags: ["yaml", "content", "tips"]
+      content: >
+        YAML's multi-line capabilities make content management a breeze. You can write
+        long-form content with proper formatting and structure, all while keeping your
+        data organized and readable.
+
+        This post demonstrates how to use different YAML block scalar indicators for
+        various content types and formatting needs.
+
+    - title: "Building Responsive Layouts with DaisyUI"
+      date: "2024-01-05"
+      author: "Mike Johnson"
+      tags: ["css", "daisyui", "design"]
+      content: |-
+        DaisyUI provides an excellent foundation for building responsive, accessible websites.
+
+        With its utility-first approach and comprehensive component library, you can create
+        professional-looking sites without writing custom CSS.
+
+        The combination of Tailwind CSS and DaisyUI components makes rapid prototyping
+        and development incredibly efficient.
 """
   end
 end
