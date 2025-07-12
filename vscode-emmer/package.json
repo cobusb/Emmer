@@ -1,0 +1,114 @@
+{
+  "name": "vscode-emmer",
+  "displayName": "Emmer Static Site Generator",
+  "description": "Integrated development tools for Emmer static site generator",
+  "version": "0.1.0",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onLanguage:html",
+    "onLanguage:yaml",
+    "onCommand:emmer.build",
+    "onCommand:emmer.watch",
+    "onCommand:emmer.validate"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "emmer.build",
+        "title": "Emmer: Build Site",
+        "category": "Emmer"
+      },
+      {
+        "command": "emmer.watch",
+        "title": "Emmer: Watch and Build",
+        "category": "Emmer"
+      },
+      {
+        "command": "emmer.validate",
+        "title": "Emmer: Validate Templates",
+        "category": "Emmer"
+      },
+      {
+        "command": "emmer.showErrors",
+        "title": "Emmer: Show Build Errors",
+        "category": "Emmer"
+      }
+    ],
+    "configuration": {
+      "title": "Emmer",
+      "properties": {
+        "emmer.sourceDir": {
+          "type": "string",
+          "default": "content",
+          "description": "Source directory for content files"
+        },
+        "emmer.outputDir": {
+          "type": "string",
+          "default": "dist",
+          "description": "Output directory for built site"
+        },
+        "emmer.templatesDir": {
+          "type": "string",
+          "default": "templates",
+          "description": "Templates directory"
+        },
+        "emmer.assetsDir": {
+          "type": "string",
+          "default": "assets",
+          "description": "Assets directory"
+        },
+        "emmer.autoBuild": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically build on file save"
+        },
+        "emmer.showDiagnostics": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show diagnostics in Problems panel"
+        }
+      }
+    },
+    "problemMatchers": [
+      {
+        "name": "emmer",
+        "owner": "emmer",
+        "fileLocation": ["relative", "${workspaceFolder}"],
+        "pattern": {
+          "regexp": "^(.*?):(\\d+):(\\d+):\\s*(.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "message": 4
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^🚀 Building static site\\.\\.\\.",
+          "endsPattern": "^✅ Site built successfully!"
+        }
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "18.x",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "typescript": "^5.0.0"
+  }
+}

@@ -1,0 +1,12 @@
+page:
+	title: My Page  # Tab character - will show error
+  description: A page with errors
+  tags:
+    - tag1
+    - tag2
+  # Missing closing brace - will show error
+
+site:
+  name: My Site
+  url: https://example.com
+  # Inconsistent indentation - will show warning

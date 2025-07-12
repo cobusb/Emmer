@@ -1,0 +1,20 @@
+{% layout "layout.html" %}
+
+<h1>{{ page.title }}</h1>
+
+{% if user.name %}
+  <p>Hello {{ user.name }}</p>
+  <!-- Missing endif - this will show an error -->
+
+{% for item in items %}
+  <div class="item">
+    <h3>{{ item.title }}</h3>
+    <p>{{ item.description }}</p>
+  </div>
+  <!-- Missing endfor - this will show an error -->
+
+{% include "missing-template.html" %}
+<!-- This include doesn't exist - will show an error -->
+
+{{ invalid syntax {{ nested braces }} }}
+<!-- Invalid variable syntax - will show an error -->

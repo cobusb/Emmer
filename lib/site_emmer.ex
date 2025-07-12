@@ -4,12 +4,31 @@ defmodule SiteEmmer do
   matches them up, and generates content using Solid templating.
   """
 
+  defmodule BuildError do
+    @type t :: %__MODULE__{
+      file: String.t(),
+      line: non_neg_integer(),
+      column: non_neg_integer(),
+      message: String.t(),
+      type: :template | :yaml | :build | :include,
+      severity: :error | :warning
+    }
+
+    defexception [:file, :line, :column, :message, :type, :severity]
+
+    @impl true
+    def message(%__MODULE__{file: file, line: line, column: column, message: message}) do
+      "#{file}:#{line}:#{column}: #{message}"
+    end
+  end
+
   def build(opts \\ []) do
     source_dir = Keyword.get(opts, :source_dir, "content")
     output_dir = Keyword.get(opts, :output_dir, "dist")
     templates_dir = Keyword.get(opts, :templates_dir, "templates")
     assets_dir = Keyword.get(opts, :assets_dir, "assets")
     verbose = Keyword.get(opts, :verbose, false)
+    structured_errors = Keyword.get(opts, :structured_errors, false)
 
     if verbose do
       IO.puts("🚀 Building static site...")
@@ -31,9 +50,9 @@ defmodule SiteEmmer do
     # Find all content files
     content_files = find_all_content_files(source_dir, verbose)
 
-    # Build each page
-    Enum.each(content_files, fn {html_file, yaml_file} ->
-      build_page(html_file, yaml_file, site_data, templates, output_dir, verbose)
+    # Build each page with error collection
+    errors = Enum.flat_map(content_files, fn {html_file, yaml_file} ->
+      build_page_with_errors(html_file, yaml_file, site_data, templates, output_dir, verbose, structured_errors)
     end)
 
     # Copy static assets
@@ -45,6 +64,17 @@ defmodule SiteEmmer do
     if verbose do
       IO.puts("✅ Site built successfully!")
     end
+
+    # Return errors if structured_errors is enabled
+    if structured_errors do
+      {:ok, errors}
+    else
+      :ok
+    end
+  end
+
+  def build_with_errors(opts \\ []) do
+    build(Keyword.put(opts, :structured_errors, true))
   end
 
   def load_site_data(source_dir, verbose \\ false) do
@@ -135,6 +165,102 @@ defmodule SiteEmmer do
     end
   end
 
+  def build_page_with_errors(html_file, yaml_file, site_data, templates, output_dir, verbose \\ false, structured_errors \\ false) do
+    errors = []
+
+    # Load page-specific data
+    page_data = if yaml_file do
+      case load_yaml_with_errors(yaml_file) do
+        {:ok, data} -> data
+        {:error, error} ->
+          errors = [error | errors]
+          %{}
+      end
+    else
+      %{}
+    end
+
+    # Load HTML content
+    html_content = case File.read(html_file) do
+      {:ok, content} -> content
+      {:error, reason} ->
+        error = %BuildError{
+          file: html_file,
+          line: 1,
+          column: 1,
+          message: "Failed to read file: #{reason}",
+          type: :build,
+          severity: :error
+        }
+        errors = [error | errors]
+        ""
+    end
+
+    # Extract layout and content
+    {layout_name, content, layout_errors} = extract_layout_and_content_with_errors(html_content, html_file)
+    errors = errors ++ layout_errors
+
+    # Merge all data - extract page data from YAML
+    context = Map.merge(site_data, %{
+      "page" => Map.get(page_data, "page", %{}),
+      "content" => content,
+      "current_year" => Date.utc_today().year
+    })
+
+    # Determine output path
+    # Extract the subdirectory name from the content path
+    # For /tmp/emmer_test/content/simple/index.html, we want "simple/index.html"
+    parts = Path.split(html_file)
+    # Find the index of "content" in the path
+    content_index = Enum.find_index(parts, fn part -> part == "content" end)
+    {output_path, relative_path} =
+      if content_index do
+        # Get everything after "content"
+        relative_parts = Enum.drop(parts, content_index + 1)
+        relative_path = Path.join(relative_parts)
+        {Path.join(output_dir, relative_path), relative_path}
+      else
+        # Fallback: use the filename
+        filename = Path.basename(html_file)
+        {Path.join(output_dir, filename), filename}
+      end
+
+    # Ensure output directory exists
+    output_dir_path = Path.dirname(output_path)
+    File.mkdir_p!(output_dir_path)
+
+    # Render with layout if specified
+    {rendered_content, render_errors} = if layout_name && Map.has_key?(templates, layout_name) do
+      layout_template = Map.get(templates, layout_name)
+      render_with_layout_with_errors(layout_template, content, context, templates, html_file)
+    else
+      render_content_with_errors(content, context, templates, html_file)
+    end
+
+    errors = errors ++ render_errors
+
+    # Write output file
+    case File.write(output_path, rendered_content) do
+      :ok -> :ok
+      {:error, reason} ->
+        error = %BuildError{
+          file: html_file,
+          line: 1,
+          column: 1,
+          message: "Failed to write output file: #{reason}",
+          type: :build,
+          severity: :error
+        }
+        errors = [error | errors]
+    end
+
+    if verbose do
+      IO.puts("✅ Built: #{relative_path}")
+    end
+
+    errors
+  end
+
   def build_page(html_file, yaml_file, site_data, templates, output_dir, verbose \\ false) do
     # Load page-specific data
     page_data = if yaml_file, do: load_yaml(yaml_file), else: %{}
@@ -190,6 +316,17 @@ defmodule SiteEmmer do
     end
   end
 
+  def extract_layout_and_content_with_errors(html_content, file_path) do
+    case Regex.run(~r/{%\s*layout\s+"([^"]+)"\s*%}(.*)/s, html_content) do
+      [_, layout_name, content] ->
+        # Strip .html extension to match template loading
+        clean_layout_name = Path.basename(layout_name, ".html")
+        {clean_layout_name, String.trim(content), []}
+      nil ->
+        {nil, html_content, []}
+    end
+  end
+
   def extract_layout_and_content(html_content) do
     case Regex.run(~r/{%\s*layout\s+"([^"]+)"\s*%}(.*)/s, html_content) do
       [_, layout_name, content] ->
@@ -201,6 +338,14 @@ defmodule SiteEmmer do
     end
   end
 
+  def render_with_layout_with_errors(layout_template, content, context, templates, file_path) do
+    # Replace content placeholder in layout
+    layout_with_content = String.replace(layout_template, "{{ content }}", content)
+
+    # Render the layout with content
+    render_template_with_errors(layout_with_content, context, templates, file_path)
+  end
+
   def render_with_layout(layout_template, content, context, templates) do
     # Replace content placeholder in layout
     layout_with_content = String.replace(layout_template, "{{ content }}", content)
@@ -209,8 +354,30 @@ defmodule SiteEmmer do
     render_template(layout_with_content, context, templates)
   end
 
+  def render_content_with_errors(content, context, templates, file_path) do
+    render_template_with_errors(content, context, templates, file_path)
+  end
+
   def render_content(content, context, templates) do
     render_template(content, context, templates)
+  end
+
+  def render_template_with_errors(template, context, templates, file_path) do
+    # Process includes first
+    {template_with_includes, include_errors} = process_includes_with_errors(template, context, templates, file_path)
+
+    # Parse and render with Solid
+    case Solid.parse(template_with_includes) do
+      {:ok, parsed_template} ->
+        case Solid.render(parsed_template, context) do
+          {:ok, result, errors} ->
+            {result, include_errors ++ Enum.map(errors, &solid_error_to_build_error(&1, file_path))}
+          {:error, errors, result} ->
+            {result, include_errors ++ Enum.map(errors, &solid_error_to_build_error(&1, file_path))}
+        end
+      {:error, template_error} ->
+        {"", include_errors ++ Enum.map(template_error.errors, &solid_parser_error_to_build_error(&1, file_path))}
+    end
   end
 
   def render_template(template, context, templates) do
@@ -220,6 +387,48 @@ defmodule SiteEmmer do
     # Parse and render with Solid
     {:ok, parsed_template} = Solid.parse(template_with_includes)
     Solid.render!(parsed_template, context)
+  end
+
+  def process_includes_with_errors(template, context, templates, file_path) do
+    errors = []
+
+    template_with_includes = Regex.replace(~r/{%\s*include\s+"([^"]+)"\s*%}/, template, fn match, include_name ->
+      # Strip .html extension to match template loading
+      clean_include_name = Path.basename(include_name, ".html")
+      include_template = Map.get(templates, clean_include_name, "")
+
+      if include_template != "" do
+        # Render the include template with the same context
+        case Solid.parse(include_template) do
+          {:ok, parsed_include} ->
+            case Solid.render(parsed_include, context) do
+              {:ok, rendered_text, include_errors} ->
+                errors = errors ++ Enum.map(include_errors, &solid_error_to_build_error(&1, file_path))
+                rendered_text
+              {:error, include_errors, rendered_text} ->
+                errors = errors ++ Enum.map(include_errors, &solid_error_to_build_error(&1, file_path))
+                rendered_text
+            end
+          {:error, template_error} ->
+            errors = errors ++ Enum.map(template_error.errors, &solid_parser_error_to_build_error(&1, file_path))
+            ""
+        end
+      else
+        # Include not found
+        error = %BuildError{
+          file: file_path,
+          line: 1,
+          column: 1,
+          message: "Include template not found: #{include_name}",
+          type: :include,
+          severity: :error
+        }
+        errors = [error | errors]
+        ""
+      end
+    end)
+
+    {template_with_includes, errors}
   end
 
   def process_includes(template, context, templates) do
@@ -237,10 +446,62 @@ defmodule SiteEmmer do
     end)
   end
 
+  def load_yaml_with_errors(path) do
+    case File.read(path) do
+      {:ok, content} ->
+        case YamlElixir.read_from_string(content) do
+          {:ok, data} -> {:ok, data}
+          {:error, error} -> {:error, yaml_error_to_build_error(error, path)}
+        end
+      {:error, reason} ->
+        {:error, %BuildError{
+          file: path,
+          line: 1,
+          column: 1,
+          message: "Failed to read YAML file: #{reason}",
+          type: :yaml,
+          severity: :error
+        }}
+    end
+  end
+
   def load_yaml(path) do
     path
     |> File.read!()
     |> YamlElixir.read_from_string!()
+  end
+
+  defp solid_error_to_build_error(solid_error, file_path) do
+    %BuildError{
+      file: file_path,
+      line: 1,
+      column: 1,
+      message: Exception.message(solid_error),
+      type: :template,
+      severity: :error
+    }
+  end
+
+  defp solid_parser_error_to_build_error(parser_error, file_path) do
+    %BuildError{
+      file: file_path,
+      line: parser_error.meta.line,
+      column: parser_error.meta.column,
+      message: parser_error.reason,
+      type: :template,
+      severity: :error
+    }
+  end
+
+  defp yaml_error_to_build_error(yaml_error, file_path) do
+    %BuildError{
+      file: file_path,
+      line: yaml_error.line || 1,
+      column: yaml_error.column || 1,
+      message: yaml_error.message,
+      type: :yaml,
+      severity: :error
+    }
   end
 
   def copy_static_assets(source_dir, output_dir, assets_dir, verbose \\ false) do
@@ -302,14 +563,16 @@ defmodule SiteEmmer do
         output_dir: :string,
         templates_dir: :string,
         assets_dir: :string,
-        verbose: :boolean
+        verbose: :boolean,
+        structured_errors: :boolean
       ],
       aliases: [
         s: :source_dir,
         o: :output_dir,
         t: :templates_dir,
         a: :assets_dir,
-        v: :verbose
+        v: :verbose,
+        e: :structured_errors
       ]
     )
 
