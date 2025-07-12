@@ -464,7 +464,7 @@ defmodule SiteEmmer do
 
   def render_template(template, context, templates) do
     # Process includes first
-    template_with_includes = process_includes(template, context, templates)
+    {template_with_includes, _} = process_includes_with_errors(template, context, templates, nil)
 
     # Parse and render with Solid
     {:ok, parsed_template} = Solid.parse(template_with_includes)
@@ -511,21 +511,6 @@ defmodule SiteEmmer do
     end)
 
     {template_with_includes, errors}
-  end
-
-  def process_includes(template, context, templates) do
-    Regex.replace(~r/{%\s*include\s+"([^"]+)"\s*%}/, template, fn _, include_name ->
-      # Strip .html extension to match template loading
-      clean_include_name = Path.basename(include_name, ".html")
-      include_template = Map.get(templates, clean_include_name, "")
-      if include_template != "" do
-        # Render the include template with the same context
-        {:ok, parsed_include} = Solid.parse(include_template)
-        Solid.render!(parsed_include, context)
-      else
-        ""
-      end
-    end)
   end
 
   def load_yaml_with_errors(path) do
