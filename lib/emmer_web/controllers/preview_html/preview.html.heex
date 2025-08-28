@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= @emmer.name %> - Preview</title>
+  <meta name="csrf-token" content={get_csrf_token()}>
+
+  <!-- Phoenix Socket and Channel support -->
+  <script src="https://cdn.jsdelivr.net/npm/phoenix@1.7.0/priv/static/phoenix.min.js"></script>
+
+  <!-- Preview-specific JavaScript -->
+  <script>
+    // Simple preview page JavaScript for handling build notifications
+    document.addEventListener('DOMContentLoaded', function() {
+      const emmerId = '<%= @emmer_id %>';
+      const pathToConfig = '<%= @emmer.path_to_config %>';
+
+      console.log('Preview page loaded for emmer:', emmerId, 'path:', pathToConfig);
+
+      // Connect to Phoenix Socket
+      const socket = new Phoenix.Socket("/socket", {
+        params: {
+          token: document.querySelector("meta[name='csrf-token']").getAttribute("content")
+        }
+      });
+
+      socket.connect();
+
+      // Join the preview channel
+      const channel = socket.channel(`preview:${emmerId}`, {
+        path_to_config: pathToConfig
+      });
+
+      // Make channel available globally for FAB menu
+      window.previewChannel = channel;
+
+      channel.join()
+        .receive("ok", resp => {
+          console.log("Joined preview channel", resp);
+        })
+        .receive("error", resp => {
+          console.error("Failed to join preview channel", resp);
+        });
+
+      // Listen for build completion events
+      channel.on("build_completed", payload => {
+        console.log("Build completed, refreshing page", payload);
+        setTimeout(() => {
+          // Preserve the current URL parameters when refreshing
+          const currentUrl = window.location.href;
+          console.log("Refreshing to URL:", currentUrl);
+          window.location.href = currentUrl;
+        }, 500);
+      });
+
+      // Listen for build started events
+      channel.on("build_started", payload => {
+        console.log("Build started", payload);
+        showBuildIndicator();
+      });
+
+      // Listen for build progress events
+      channel.on("build_progress", payload => {
+        console.log("Build progress", payload);
+        updateBuildProgress(payload);
+      });
+
+      function showBuildIndicator() {
+        const indicator = document.getElementById('build-indicator');
+        if (indicator) {
+          indicator.style.display = 'block';
+        }
+      }
+
+      function updateBuildProgress(payload) {
+        const indicator = document.getElementById('build-indicator');
+        if (indicator) {
+          const text = indicator.querySelector('span');
+          if (text && payload.type) {
+            text.textContent = `Building: ${payload.type}`;
+          }
+        }
+      }
+    });
+  </script>
+
+  <!-- Inline styles for build indicator -->
+  <style>
+    .build-indicator {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      z-index: 9999;
+      background: #3b82f6;
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 0.375rem;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+      display: none;
+    }
+
+    .build-indicator.show {
+      display: block;
+    }
+
+    .spinner {
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <!-- Build indicator (hidden by default) -->
+  <div id="build-indicator" class="build-indicator">
+    <div class="flex items-center space-x-2">
+      <div class="spinner rounded-full h-4 w-4 border-b-2 border-white"></div>
+      <span>Building...</span>
+    </div>
+  </div>
+
+  <!-- Preview content -->
+  <div id="preview-content">
+    <%= raw(@content) %>
+  </div>
+
+  <!-- FAB Menu -->
+  <%= raw(@fab_html) %>
+</body>
+</html>

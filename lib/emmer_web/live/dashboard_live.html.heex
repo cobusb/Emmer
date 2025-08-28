@@ -1,0 +1,235 @@
+<Layouts.app flash={@flash}>
+  <div class="min-h-screen bg-base-100">
+    <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+      <!-- Header -->
+      <div class="px-4 py-6 sm:px-0">
+        <div class="flex justify-between items-center">
+          <div>
+            <h1 class="text-3xl font-bold text-base-content">Dashboard</h1>
+            <p class="mt-1 text-sm text-base-content/70">Your registered Emmers</p>
+          </div>
+          <button
+            phx-click="add_emmer"
+            class="btn btn-primary"
+          >
+            <.icon name="hero-plus" class="w-6 h-6" />
+            Add Emmer
+          </button>
+        </div>
+      </div>
+
+      <div :if={@show_add_form} class="card bg-base-200 shadow-xl mb-6">
+        <div class="card-body">
+          <h3 class="card-title">Add a New Emmer</h3>
+          <.form for={@new_emmer} phx-submit="save">
+            <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+              <div class="form-control ">
+                <.input
+                  type="text"
+                  field={@new_emmer[:name]}
+                  label="Name"
+                  id="emmer_name"
+                  autocomplete="off"
+                  required
+                />
+              </div>
+
+
+              <div class="form-control">
+                <.input
+                  type="text"
+                  field={@new_emmer[:path_to_config]}
+                  label="emmer.config.yaml file location"
+                  id="emmer_path_to_config"
+                  required
+                  autocomplete="off"
+                  placeholder="/path/to/your/emmer/config/"
+                />
+              </div>
+
+
+              <div class="form-control">
+                <.input
+                  type="text"
+                  field={@new_emmer[:home_page]}
+                  label="Home Page"
+                  id="emmer_home_page"
+                  autocomplete="off"
+                  placeholder="index.html"
+                  required
+                />
+              </div>
+
+              <div class="form-control">
+                <.input
+                  type="text"
+                  field={@new_emmer[:browse_dir]}
+                  label="Browse Directory"
+                  id="emmer_browse_dir"
+                  autocomplete="off"
+                  placeholder="dist"
+                  required
+                />
+              </div>
+
+
+              <div class="form-control">
+                <.input
+                  type="select"
+                  field={@new_emmer[:button_position]}
+                  label="Button Position"
+                  options={["bottom-right", "top-right", "bottom-left", "top-left"]}
+                />
+                <input type="hidden" name="emmer[action]" value={@action} />
+              </div>
+            </div>
+
+            <div  class="card-actions justify-between mt-6">
+              <button
+              :if={@action == :edit}
+              phx-click="delete"
+              phx-value-id={@selected_emmer.id}
+              data-confirm="Are you sure you want to remove this emmer?"
+              class="btn btn-sm btn-outline btn-error"
+            >
+              <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+              </svg>
+              Remove
+              </button>
+              <div :if={@action == :insert}/>
+
+              <div class="flex flex-row gap-2">
+                <button
+                  type="button"
+                  phx-click="toggle_add_form"
+                  class="btn btn-ghost"
+                >
+                  Cancel
+                </button>
+                <.button :if={@action == :insert} type="submit" class="btn btn-primary">
+                  Add Emmer
+                </.button>
+                <.button :if={@action == :edit} type="submit" class="btn btn-primary">
+                  Update Emmer
+                </.button>
+              </div>
+            </div>
+          </.form>
+        </div>
+      </div>
+
+      <!-- Watchers List -->
+      <div class="card bg-base-200 shadow-xl">
+        <div class="card-body">
+          <div class="overflow-x-auto">
+            <table class="table table-zebra">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Path to config</th>
+                  <th>Last Build</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="emmers" phx-update="stream">
+                <tr class="hidden only:table-row">
+                  <td colspan="5" class="text-center py-8">
+                    <div class="flex flex-col items-center">
+                      <svg class="w-12 h-12 text-base-content/40 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                      </svg>
+                      <h3 class="text-lg font-medium text-base-content/70">No watchers</h3>
+                      <p class="text-sm text-base-content/50">Get started by adding a site to watch.</p>
+                    </div>
+                  </td>
+                </tr>
+
+                <tr :for={{dom_id, emmer} <- @streams.emmers} id={dom_id}>
+                  <td>
+                    <div class="font-medium">{emmer.name}</div>
+                  </td>
+                  <td>
+                    <div class="text-sm text-base-content/70">{emmer.path_to_config}</div>
+                  </td>
+                  <td>
+                    <div class="text-sm text-base-content/70">
+                      "genserver status"
+                    </div>
+                  </td>
+                  <td>
+                    <div class="flex gap-2">
+                      <a
+                        href={"/preview/#{emmer.id}"}
+                        class="btn btn-sm btn-outline btn-primary"
+                      >
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                        </svg>
+                        Preview
+                      </a>
+                      <button
+                        phx-click="toggle_watch"
+                        phx-value-id={emmer.id}
+                        class={[
+                          "btn btn-sm",
+                          if(watcher_running?(emmer),
+                            do: "btn-warning",
+                            else: "btn-outline btn-info"
+                          )
+                        ]}
+                      >
+                        <svg :if={emmer} class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                        </svg>
+                        {if watcher_running?(emmer), do: "Watching", else: "Start Watching"}
+                      </button>
+                      <button
+                        phx-click="build"
+                        phx-value-id={emmer.id}
+                        class={[
+                          "btn btn-sm",
+                          if(build_running?(emmer),
+                            do: "btn-secondary loading",
+                            else: "btn-outline btn-success"
+                          )
+                        ]}
+                        disabled={build_running?(emmer)}
+                      >
+                        <.icon name="hero-wrench-screwdriver" class="w-4 h-4 mr-1" />
+                        {if build_running?(emmer), do: "Building", else: "Build"}
+                      </button>
+                      <button
+                          :if={not is_nil(emmer.last_error) and emmer.last_error != []}
+                        phx-click="show_error_details"
+                        phx-value-id={emmer.id}
+                        class="btn btn-sm btn-outline btn-error"
+                        title="View error details"
+                      >
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        Errors
+                      </button>
+                      <button
+                      phx-click="edit"
+                      phx-value-id={emmer.id}
+                      class="btn btn-sm btn-outline btn-primary"
+                    >
+                      Edit
+                    </button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Error Details Modal -->
+  <.error_details_modal :if={@show_error_modal} errors={@selected_error_watcher.last_error} last_build_at={@selected_error_watcher.last_build_at} name={@selected_error_watcher.name} />
+</Layouts.app>

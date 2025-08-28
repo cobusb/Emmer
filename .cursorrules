@@ -1,0 +1,272 @@
+# Emmer Static Site Generator - AI Assistant Guidelines
+
+## Project Overview
+Emmer is a static site generator built with Elixir/Phoenix that uses:
+- **Solid templating** (Elixir implementation of Liquid templating language)
+- **YAML configuration** for site data and page metadata
+- **Tailwind CSS + DaisyUI** for styling and components
+- **Live preview system** with real-time file watching
+- **Phoenix LiveView** for the admin interface
+
+## Directory Structure
+```
+my-site/
+├── content/            # Source content (HTML + YAML)
+│   ├── site.yaml       # Site-wide configuration
+│   ├── index.html      # Home page
+│   ├── index.yaml      # Home page data
+│   ├── about.html      # About page
+│   ├── about.yaml      # About page data
+│   ├── blog.html       # Blog page
+│   ├── blog.yaml       # Blog page data
+│   ├── images/         # Static images
+│   ├── css/            # Custom CSS files
+│   └── js/             # Custom JavaScript files
+├── templates/          # Solid/Liquid templates
+│   ├── layout.html     # Main layout template
+│   ├── header.html     # Header partial
+│   ├── footer.html     # Footer partial
+│   └── components/     # Reusable components
+└── dist/               # Built output (auto-generated)
+```
+
+## Key Technologies & Conventions
+
+### 1. Solid Templating (Liquid Implementation)
+- **Variables**: `{{ variable_name }}`
+- **Layouts**: `{% layout "layout.html" %}` (file extension optional - system adds .html automatically)
+- **Includes**: `{% render "header.html" %}` (file extension always expected)
+- **Includes with parameters**: `{% render "footer.html", tagline: site.tagline, name: site.name %}`
+- **Conditionals**: `{% if condition %}...{% endif %}`
+- **Loops**: `{% for item in items %}...{% endfor %}`
+
+### 2. YAML Configuration
+- **Site-wide data**: `content/site.yaml`
+- **Page-specific data**: `content/page.yaml` (pairs with `page.html`)
+- **Front matter**: YAML at top of HTML files between `---` markers
+- **Data merging**: Site data → Page YAML → Front matter (front matter wins)
+
+### 3. Tailwind CSS + DaisyUI
+- **Utility-first CSS** with Tailwind classes
+- **Component library** with DaisyUI components (btn, card, navbar, etc.)
+- **Theme system** with light/dark mode support
+- **Custom variants** for LiveView states
+
+### 4. File Structure Conventions
+- **Content files**: `.html` files in content directory
+- **Data files**: `.yaml` files with same basename as HTML files
+- **Templates**: `.html` files in templates directory
+- **Assets**: Any non-HTML/YAML files in content directory
+
+## Development Guidelines
+
+### When Working with Templates
+1. **Use Solid syntax** for all templating (not EEx)
+2. **Layout system**: Use `{% layout "template.html" %}` for page structure
+3. **Content placeholder**: Use `{{ content }}` in layout templates
+4. **Template includes**: Use `{% render "partial.html" %}` for reusable components
+5. **Variable access**: Use dot notation (e.g., `{{ site.name }}`, `{{ page.title }}`)
+
+## Layout System Implementation
+
+### How to Set Up a Layout Template
+1. **Create layout file**: `templates/layout.html`
+2. **Add content placeholder**: Use `{{ content }}` where page content should appear
+3. **Add template includes**: Use `{% render "header.html" %}` and `{% render "footer.html" %}` for reusable parts (file extension required)
+4. **Pass parameters**: Use `{% render "footer.html", tagline: site.tagline, name: site.name %}` to pass data to partials
+5. **Access variables**: Use `{{ site.name }}`, `{{ page.title }}`, etc.
+
+### How to Use a Layout in HTML Pages
+1. **Add layout directive**: Place `{% layout "layout" %}` or `{% layout "layout.html" %}` at the top of your HTML file (file extension is optional)
+2. **Add page content**: Write your HTML content after the layout directive
+3. **Optional front matter**: Add YAML between `---` markers at the very top for page-specific data
+
+### When Working with YAML
+1. **Site data**: Define global variables in `site.yaml`
+2. **Page data**: Create `.yaml` files alongside `.html` files
+3. **Front matter**: Use `---` delimiters for inline YAML in HTML files
+4. **Data hierarchy**: Site → Page YAML → Front matter (latter overrides former)
+5. **Multi-line content**: Use YAML block scalars (`|`, `>`, `|-`) for long content
+
+### When Working with Styling
+1. **Use DaisyUI components** when possible (btn, card, navbar, etc.)
+2. **Tailwind utilities** for custom styling
+3. **Responsive design** with Tailwind breakpoint prefixes
+4. **Theme support** with `data-theme` attributes
+5. **LiveView states** with custom variants (phx-click-loading, etc.)
+
+### When Working with Elixir Code
+1. **Phoenix LiveView** for interactive components
+2. **File watching** with `Emmer.FileWatcher`
+3. **Build system** with `Emmer.Builder`
+4. **Database** with Ecto for project management
+5. **PubSub** for real-time updates
+
+## Common Patterns
+
+## Layout System Examples
+
+### Complete Layout Template (`templates/layout.html`)
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{% if page.title %}{{ page.title }} - {% endif %}{{ site.name }}</title>
+    <meta name="description" content="{{ page.description | default: site.description }}">
+</head>
+<body>
+    {% render "header.html" %}
+    <main>
+        {{ content }}
+    </main>
+    {% render "footer.html" %}
+</body>
+</html>
+```
+
+### Header Partial (`templates/header.html`)
+```html
+<header class="navbar bg-base-200">
+    <div class="flex-1">
+        <a class="btn btn-ghost text-xl" href="/">{{ site.name }}</a>
+    </div>
+    <div class="flex-none">
+        <ul class="menu menu-horizontal px-1">
+            <li><a href="/">Home</a></li>
+            <li><a href="/about">About</a></li>
+            <li><a href="/blog">Blog</a></li>
+        </ul>
+    </div>
+</header>
+```
+
+### Footer Partial with Parameters (`templates/footer.html`)
+```html
+<footer class="footer footer-center p-10 bg-base-200 text-base-content">
+    <div class="grid grid-flow-col gap-4 md:place-self-center md:justify-self-end">
+        <div class="text-center">
+            <p class="text-lg font-bold">{{ name }}</p>
+            <p class="text-sm">{{ tagline }}</p>
+            <div class="mt-2">
+                <p>{{ address_line_1 }}</p>
+                <p>{{ address_line_2 }}</p>
+            </div>
+            <div class="mt-4">
+                <a href="mailto:{{ contact_mail }}" class="link link-hover">{{ contact_mail }}</a>
+                <br>
+                <a href="tel:{{ contact_number }}" class="link link-hover">{{ contact_number }}</a>
+            </div>
+            <div class="mt-2">
+                <a href="{{ gmaps_url }}" target="_blank" class="btn btn-sm btn-outline">View on Map</a>
+            </div>
+        </div>
+    </div>
+</footer>
+```
+
+### Using Footer with Parameters
+```html
+{% render "footer.html",
+   tagline: site.tagline,
+   name: site.name,
+   address_line_1: site.address_line_1,
+   address_line_2: site.address_line_2,
+   gmaps_url: site.gmaps_url,
+   contact_mail: site.contact_mail,
+   contact_number: site.contact_number %}
+```
+
+### Page Using Layout (`content/about.html`)
+```html
+---
+title: "About Us"
+description: "Learn more about our company"
+---
+{% layout "layout" %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-4xl font-bold mb-6">{{ page.title }}</h1>
+    <p class="text-lg mb-4">{{ page.description }}</p>
+    <div class="prose">
+        <p>This is the about page content that will appear in the main area.</p>
+    </div>
+</div>
+```
+
+### Site Configuration
+```yaml
+site:
+  name: "My Site"
+  description: "Site description"
+  contact:
+    email: "contact@example.com"
+```
+
+### Page Data
+```yaml
+page:
+  title: "Page Title"
+  description: "Page description"
+  posts:
+    - title: "Post 1"
+      content: "Post content"
+```
+
+## AI Assistant Instructions
+
+### When Helping with Templates
+- Always use Solid/Liquid syntax, not EEx
+- **Layout system**: Guide users to use `{% layout "template" %}` or `{% layout "template.html" %}` for page structure (file extension optional)
+- **Template includes**: Show how to use `{% render "partial.html" %}` for reusable components (file extension always required)
+- **Template parameters**: Demonstrate passing data with `{% render "partial.html", key: value, key2: value2 %}`
+- **Content placeholder**: Explain that `{{ content }}` is where page content appears in layouts
+- Suggest DaisyUI components for UI elements
+- Use Tailwind utilities for custom styling
+- Consider responsive design with breakpoints
+- Include proper data variable references
+
+### When Helping with YAML
+- Follow the data hierarchy (site → page → front matter)
+- Use appropriate YAML block scalars for content
+- Ensure proper indentation and syntax
+- Consider data organization and reusability
+
+### When Helping with Styling
+- Prefer DaisyUI components over custom CSS
+- Use Tailwind utilities for layout and spacing
+- Consider theme support (light/dark mode)
+- Include responsive design considerations
+- Use semantic class names
+
+### When Debugging
+- Check file paths and directory structure
+- Verify YAML syntax and data structure
+- Ensure template syntax is correct
+- Check build logs for errors
+- Verify asset paths and references
+
+## File Extensions & MIME Types
+- **HTML files**: `.html` (processed with Solid templating)
+- **YAML files**: `.yaml` (data configuration)
+- **CSS files**: `.css` (Tailwind + DaisyUI)
+- **JavaScript files**: `.js` (Phoenix LiveView)
+- **Image files**: `.png`, `.jpg`, `.svg`, etc. (static assets)
+
+## Build Process
+1. **File watching** detects changes in content, templates, or assets
+2. **YAML parsing** loads site and page data
+3. **Template processing** applies Solid templating
+4. **Asset copying** moves static files to output directory
+5. **Live preview** updates in real-time via Phoenix LiveView
+
+## Common Issues & Solutions
+- **Template not found**: Check templates directory and file names
+- **Layout not working**: Ensure `{% layout "layout.html" %}` is at the top of your HTML file
+- **Content not appearing**: Verify `{{ content }}` placeholder exists in your layout template
+- **Template includes failing**: Check that partial files exist in templates directory
+- **Template parameters not working**: Verify parameter names match between render call and partial template
+- **Variable not defined**: Verify YAML data structure and variable names
+- **Build errors**: Check YAML syntax and file paths
+- **Styling issues**: Ensure Tailwind/DaisyUI classes are correct
+- **Live preview not updating**: Check file watcher is running and try to rebuild manually. check if the file in the dist folder is reflecting the expected changes.
+
+Remember: Emmer combines the simplicity of static sites with the power of modern web development tools, providing a fast, secure, and maintainable way to build websites.
